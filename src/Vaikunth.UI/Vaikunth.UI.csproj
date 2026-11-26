@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Shared by all three apps: the tag helpers (reusable controls), the suite look (css, icons),
+       the sign-in page, the Vaikunth Office launcher and the layouts. Static files are served
+       to each app at /_content/Vaikunth.UI/... -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Vaikunth.UI</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vaikunth.DtoLibrary\Vaikunth.DtoLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.ServiceLibrary\Vaikunth.ServiceLibrary.csproj" />
+  </ItemGroup>
+
+</Project>

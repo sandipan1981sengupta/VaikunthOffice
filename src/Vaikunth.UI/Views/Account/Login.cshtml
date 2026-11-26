@@ -1,0 +1,71 @@
+@model LoginViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Sign in";
+}
+<partial name="_AuthHero" />
+
+<div class="vk-window-wrap">
+    <div class="vk-window-orbs" aria-hidden="true"><span class="w1"></span><span class="w2"></span><span class="w3"></span></div>
+
+    <div class="vk-float vk-float-a glass" aria-hidden="true">
+        <img src="/_content/Vaikunth.UI/images/app-workbook.svg" width="34" height="34" alt="" />
+        <span><b>Sales by region 2026</b><small>Updated 3 hours ago</small></span>
+    </div>
+    <div class="vk-float vk-float-b glass" aria-hidden="true">
+        <img src="/_content/Vaikunth.UI/images/app-slides.svg" width="34" height="34" alt="" />
+        <span><b>Quarterly review</b><small>3 slides · ready to present</small></span>
+    </div>
+
+    <form method="post" asp-action="Login" class="vk-window glass" novalidate>
+        <div class="vk-window-top">
+            <div>
+                <div class="vk-eyebrow">Welcome back</div>
+                <h2>Sign in</h2>
+                <p class="vk-window-sub">to Vaikunth Office</p>
+            </div>
+            <span class="vk-lock"><i class="fa fa-lock" aria-hidden="true"></i></span>
+        </div>
+
+        @if (TempData["SetupMessage"] is string setupMessage) { <div class="vk-banner ok"><i class="fa fa-check-circle"></i> @setupMessage</div> }
+        <div asp-validation-summary="ModelOnly" class="vk-form-error" role="alert"></div>
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <div>
+            <vk-input id="Email" label="Work email" icon="envelope-o" mandatory="true" placeholder="you@company.com"
+                      value="@Model.Email" max-length="200" autocomplete="username" autofocus="true" />
+            <span asp-validation-for="Email" class="vk-field-error"></span>
+        </div>
+        <div>
+            <vk-input id="Password" label="Password" is-password="true" mandatory="true" placeholder="Enter your password" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="vk-field-error"></span>
+        </div>
+
+        <div class="vk-row-split">
+            <vk-checkbox id="RememberMe" label="Keep me signed in" is-toggle="true" checked="@Model.RememberMe" />
+            <a class="vk-link" href="/account/forgot" id="forgotLink">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="vk-btn vk-btn-grad vk-signin">Sign in <i class="fa fa-arrow-right" aria-hidden="true"></i></button>
+
+        <div class="vk-divider"><span></span><i class="fa fa-shield" aria-hidden="true"></i> One sign-in for all three apps<span></span></div>
+        <div class="vk-login-apps" aria-hidden="true">
+            <vk-app-icon app="pages" size="30" /><vk-app-icon app="workbook" size="30" /><vk-app-icon app="slides" size="30" />
+        </div>
+        @if (Model.MockMode)
+        {
+            <p class="vk-mock-note"><i class="fa fa-flask"></i> Mock mode (no database): use any email with the password <b>vaikunth123</b>.
+            Super admin: <b>superadmin@vaikunth.local</b>.</p>
+        }
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        // "Forgot password?" carries the email typed so far
+        document.getElementById("forgotLink").addEventListener("click", function () {
+            var email = (document.getElementById("Email").value || "").trim();
+            if (email) this.href = "/account/forgot?email=" + encodeURIComponent(email);
+        });
+    </script>
+}

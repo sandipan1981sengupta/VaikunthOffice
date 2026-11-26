@@ -1,0 +1,62 @@
+@model LauncherViewModel
+@{
+    ViewData["Title"] = "Home";
+    string Open(SuiteApp app, Guid? id = null) => $"{Model.Suite.UrlFor(app)}/editor{(id is null ? "" : "?id=" + id)}";
+    string New(SuiteApp app) => $"{Model.Suite.UrlFor(app)}/editor/new";
+}
+<section class="vk-launch-head">
+    <div>
+        <h1>@UserExtensions.Greeting(DateTime.Now), @User.FirstName()</h1>
+        <vk-verse variant="inline" />
+    </div>
+    <div class="vk-launch-actions">
+        @if (User.Apps().Has(SuiteApp.Pages)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Pages)"><i class="fa fa-file-text-o"></i> Blank document</a> }
+        @if (User.Apps().Has(SuiteApp.Workbook)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Workbook)"><i class="fa fa-table"></i> Blank workbook</a> }
+        @if (User.Apps().Has(SuiteApp.Slides)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Slides)"><i class="fa fa-television"></i> Blank deck</a> }
+    </div>
+</section>
+
+@if (TempData["Blocked"] is string blockedApp)
+{
+    <div class="vk-banner err"><i class="fa fa-lock"></i> @blockedApp isn't part of your company's plan. Ask your admin to add it.</div>
+}
+<section class="vk-tiles" aria-label="Apps">
+    @foreach (var a in SuiteApps.All)
+    {
+        <vk-app-tile app="@a.Key" href="@Open(a.App)" new-href="@New(a.App)" is-current="@(a.App == Model.Current.Info.App)"
+                     is-locked="@(!User.Apps().Has(a.App))" />
+    }
+</section>
+
+<section class="vk-recent glass-soft">
+    <div class="vk-recent-head">
+        <h2>Recent files</h2>
+        <nav class="vk-chips">
+            <a class="@(Model.Filter == "all" ? "on" : "")" href="/">All</a>
+            @foreach (var a in SuiteApps.All)
+            {
+                <a class="@(Model.Filter == a.Key ? "on" : "")" href="/?filter=@a.Key" style="--tile:@a.Color"><img src="@a.IconUrl" width="16" height="16" alt="" /> @a.Kind</a>
+            }
+        </nav>
+    </div>
+    <table class="vk-files">
+        <thead><tr><th>Name</th><th>App</th><th>Owner</th><th>Modified</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var f in Model.Recent)
+            {
+                var a = SuiteApps.For(f.App);
+                <tr>
+                    <td><a class="vk-file-name" href="@Open(f.App, f.DocumentId)"><img src="@a.IconUrl" width="28" height="28" alt="" /> @f.Title</a></td>
+                    <td class="vk-muted">@a.Name</td>
+                    <td class="vk-muted">@f.OwnerName</td>
+                    <td class="vk-muted">@UserExtensions.Ago(f.ModifiedUtc)</td>
+                    <td class="vk-star">@if (f.IsStarred) { <i class="fa fa-star" title="Starred"></i> } else { <i class="fa fa-star-o"></i> }</td>
+                </tr>
+            }
+            @if (Model.Recent.Count == 0)
+            {
+                <tr><td colspan="5" class="vk-empty">Nothing here yet. Start a new file above.</td></tr>
+            }
+        </tbody>
+    </table>
+</section>

@@ -1,0 +1,206 @@
+@inject Vaikunth.ServiceLibrary.IDocumentFileStore Files
+@model AdminViewModel
+@inject Vaikunth.ServiceLibrary.IAppEmailSender Mail
+@{
+    ViewData["Title"] = "Clients";
+    var planOptions = string.Join(",", Model.Plans.Select(p => $"{p.PlanId}|{p.Name} · {p.MaxUsers} users · {Sizes.Bytes(p.StorageQuotaMb * 1048576)}"));
+    var firstPlan = Model.Plans.Skip(1).FirstOrDefault()?.PlanId ?? Model.Plans.FirstOrDefault()?.PlanId ?? 1;
+}
+<section class="vk-admin-head">
+    <div>
+        <div class="vk-eyebrow"><i class="fa fa-shield"></i> Super admin</div>
+        <h1>Clients</h1>
+        <p class="vk-muted">Every company that uses Vaikunth Office. Add a client, choose its plan and apps, or switch it off.
+            The client's admin gets an email to set their password, then adds their own office.</p>
+    </div>
+    <button type="button" class="vk-btn vk-btn-grad" data-open-dialog="newClient"><i class="fa fa-plus"></i> New client</button>
+</section>
+@if (!Mail.IsConfigured)
+{
+    <div class="vk-banner info"><i class="fa fa-flask"></i> Email isn't set up on this server yet, so welcome emails go to the developer outbox.
+        <a class="vk-link" href="/dev/outbox" target="_blank">Open the outbox</a></div>
+}
+
+@if (TempData["Ok"] is string ok) { <div class="vk-banner ok"><i class="fa fa-check-circle"></i> @ok</div> }
+@if (TempData["Error"] is string err) { <div class="vk-banner err"><i class="fa fa-exclamation-circle"></i> @err</div> }
+
+<section class="vk-stats">
+    <vk-stat-card icon="building-o" label="Clients" value="@Model.Stats.Clients.ToString()" sub="@($"{Model.Stats.ActiveClients} active")" tone="navy" />
+    <vk-stat-card icon="users" label="People" value="@Model.Stats.Users.ToString("N0")" sub="across all clients" tone="peacock" />
+    <vk-stat-card icon="files-o" label="Files" value="@((Model.Stats.Documents + Model.Stats.Workbooks + Model.Stats.Decks).ToString("N0"))"
+                  sub="@($"{Model.Stats.Documents:N0} docs · {Model.Stats.Workbooks:N0} sheets · {Model.Stats.Decks:N0} decks")" tone="green" />
+    <vk-stat-card icon="database" label="Storage used" value="@Sizes.Bytes(Model.Stats.StorageUsedBytes)" sub="files on the server" tone="saffron" />
+</section>
+
+<section class="vk-recent glass-soft">
+    <div class="vk-recent-head">
+        <form class="vk-admin-search" method="get" action="/admin">
+            <i class="fa fa-search"></i><input name="q" value="@Model.Search" placeholder="Search clients, short names or admin emails" />
+            <input type="hidden" name="show" value="@Model.Show" />
+        </form>
+        <nav class="vk-chips">
+            <a class="@(Model.Show == "all" ? "on" : "")" href="/admin?show=all&q=@Model.Search">All</a>
+            <a class="@(Model.Show == "active" ? "on" : "")" href="/admin?show=active&q=@Model.Search">Active</a>
+            <a class="@(Model.Show == "off" ? "on" : "")" href="/admin?show=off&q=@Model.Search">Switched off</a>
+        </nav>
+    </div>
+    <div class="vk-table-scroll">
+    <table class="vk-files vk-clients">
+        <thead><tr><th>Client</th><th>Plan</th><th>Apps</th><th>People</th><th>Storage</th><th>Files</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var c in Model.Clients)
+        {
+            <tr class="@(c.IsActive ? "" : "is-off")">
+                <td>
+                    <div class="vk-client">
+                        <span class="vk-client-av tone-@(Math.Abs(c.Slug.GetHashCode()) % 6)">@Names.Initials(c.Name)</span>
+                        <span><b>@c.Name</b><small>@c.Slug · @(c.AdminEmail ?? "no admin yet")</small>
+                            @if (c.AdminPending) { <em class="vk-state vk-state-invited">Admin invited</em> }</span>
+                    </div>
+                </td>
+                <td><span class="vk-pill plan-@c.PlanName.ToLowerInvariant()">@c.PlanName</span></td>
+                <td><vk-app-badges value="@((int)c.Apps)" /></td>
+                <td style="min-width:130px"><vk-progress percent="@c.UserPercent" text="@($"{c.ActiveUsers} of {c.MaxUsers}")" /></td>
+                <td style="min-width:150px"><vk-progress percent="@c.StoragePercent" text="@($"{Sizes.Bytes(c.StorageUsedBytes)} of {Sizes.Bytes(c.StorageQuotaBytes)}")" /></td>
+                <td class="vk-file-counts">
+                    <span title="Akshara Pages documents"><img src="/_content/Vaikunth.UI/images/app-pages.svg" width="16" height="16" alt="" /> @c.Documents</span>
+                    <span title="Hrishikesha Workbook sheets"><img src="/_content/Vaikunth.UI/images/app-workbook.svg" width="16" height="16" alt="" /> @c.Workbooks</span>
+                    <span title="Vishwaroopa Slides decks"><img src="/_content/Vaikunth.UI/images/app-slides.svg" width="16" height="16" alt="" /> @c.Decks</span>
+                </td>
+                <td>
+                    <form method="post" action="/admin/active">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="tenantId" value="@c.TenantId" /><input type="hidden" name="name" value="@c.Name" />
+                        <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
+                        <button type="submit" class="vk-status-pill @(c.IsActive ? "on" : "off")" title="@(c.IsActive ? "Switch off" : "Switch on")">
+                            <span></span>@(c.IsActive ? "Active" : "Off")
+                        </button>
+                    </form>
+                </td>
+                <td class="vk-row-actions">
+                    @if (c.AdminPending && c.IsActive)
+                    {
+                        <form method="post" action="/admin/resend" class="vk-inline-form">
+                            @Html.AntiForgeryToken()<input type="hidden" name="tenantId" value="@c.TenantId" />
+                            <button type="submit" class="vk-btn vk-btn-light vk-btn-sm" title="Send the welcome email again"><i class="fa fa-paper-plane"></i> Resend</button>
+                        </form>
+                    }
+                    <button type="button" class="vk-btn vk-btn-light vk-btn-sm" data-edit-client
+                            data-id="@c.TenantId" data-name="@c.Name" data-plan="@c.PlanId" data-apps="@((int)c.Apps)" data-active="@c.IsActive.ToString().ToLowerInvariant()"
+                            data-maxusers="@c.MaxUsers" data-storagemb="@(c.StorageQuotaBytes / 1048576)"><i class="fa fa-pencil"></i> Edit</button>
+                </td>
+            </tr>
+        }
+        @if (Model.Clients.Count == 0)
+        {
+            <tr><td colspan="8" class="vk-empty">No clients match. Add one with New client.</td></tr>
+        }
+        </tbody>
+    </table>
+    </div>
+</section>
+
+<section class="vk-admin-lower">
+    <div class="glass-soft vk-card">
+        <h2><i class="fa fa-tags"></i> Plans</h2>
+        <div class="vk-plans">
+            @foreach (var p in Model.Plans)
+            {
+                <div class="vk-plan">
+                    <b>@p.Name</b>
+                    <span class="vk-plan-price">@(p.PricePerUser == 0 ? "Free" : $"₹{p.PricePerUser:0} / user / month")</span>
+                    <ul>
+                        <li><i class="fa fa-users"></i> Up to @p.MaxUsers people</li>
+                        <li><i class="fa fa-database"></i> @Sizes.Bytes(p.StorageQuotaMb * 1048576) storage</li>
+                        <li><vk-app-badges value="@((int)p.Apps)" /></li>
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="glass-soft vk-card">
+        <h2><i class="fa fa-hdd-o"></i> Where files are saved</h2>
+        <p class="vk-muted">The <b>content</b> of every file is a file on the server, in the folder set in <code>Storage:RootPath</code>.
+        The database table <code>Vaikunth_Documents</code> keeps only the list: file name, who created it and when, who updated it and when, and whether it is deleted.</p>
+        <p class="vk-where-root"><i class="fa fa-folder-open-o"></i> <code>@Files.Root</code></p>
+        <ul class="vk-where">
+            <li><img src="/_content/Vaikunth.UI/images/app-pages.svg" width="26" height="26" alt="" /><span><b>Akshara Pages (Word)</b><small><code>{client}/Pages/{file}.json</code> · the page (HTML) and page size</small></span></li>
+            <li><img src="/_content/Vaikunth.UI/images/app-workbook.svg" width="26" height="26" alt="" /><span><b>Hrishikesha Workbook (Excel)</b><small><code>{client}/Workbook/{file}.json</code> · sheets, cells, formulas, formats</small></span></li>
+            <li><img src="/_content/Vaikunth.UI/images/app-slides.svg" width="26" height="26" alt="" /><span><b>Vishwaroopa Slides (PowerPoint)</b><small><code>{client}/Slides/{file}.json</code> · theme, slides, boxes, pictures, notes</small></span></li>
+        </ul>
+        <p class="vk-muted small">People, passwords and profile photos stay in the database. Each file's size is added to the client's storage used; a save is refused when the client's quota is full.</p>
+        @if (Model.MockMode)
+        {
+            <p class="vk-mock-note"><i class="fa fa-flask"></i> Mock mode: there is no database yet, so clients, people and the list of files are kept in memory until the app restarts. File contents are still written to the folder above.</p>
+        }
+    </div>
+</section>
+
+<vk-dialog id="newClient" title="New client" icon="building-o" ok-text="Create client" action="/admin/create" width="620px">
+    @Html.AntiForgeryToken()
+    <div class="vk-form-2">
+        <vk-input id="Name" label="Company name" icon="building-o" mandatory="true" placeholder="Acme Corp" max-length="120" />
+        <vk-input id="Slug" label="Short name" icon="link" mandatory="true" placeholder="acme" max-length="39" />
+    </div>
+    <vk-select id="PlanId" label="Plan" icon="tags" options="@planOptions" selected="@firstPlan.ToString()" />
+    <vk-app-picker name="apps" value="7" label="Apps for this client" id-prefix="new" />
+    <div class="vk-form-sep">First admin of this client</div>
+    <div class="vk-form-2">
+        <vk-input id="AdminName" label="Name" icon="user-o" mandatory="true" placeholder="Priya Sharma" />
+        <vk-input id="AdminEmail" label="Email" icon="envelope-o" mandatory="true" placeholder="admin@acme.com" input-type="email" />
+    </div>
+    <div class="vk-choice">
+        <label class="vk-choice-opt"><input type="radio" name="SendInvite" value="true" checked />
+            <span><b><i class="fa fa-envelope-o"></i> Email a link to set their password</b><small>Recommended. They choose their own password; the link lasts 7 days.</small></span></label>
+        <label class="vk-choice-opt"><input type="radio" name="SendInvite" value="false" />
+            <span><b><i class="fa fa-key"></i> I'll set a temporary password</b><small>You pass it on yourself. They can change it with Forgot password.</small></span></label>
+    </div>
+    <div id="tempPassword" hidden>
+        <vk-input id="AdminPassword" label="Temporary password" is-password="true" placeholder="At least 8 characters" />
+    </div>
+</vk-dialog>
+
+<vk-dialog id="editClient" title="Edit client" icon="pencil" ok-text="Save changes" action="/admin/update" width="620px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="TenantId" id="EditTenantId" />
+    <vk-input id="EditName" name="Name" label="Company name" icon="building-o" mandatory="true" />
+    <vk-select id="EditPlanId" name="PlanId" label="Plan" icon="tags" options="@planOptions" />
+    <div class="vk-form-2">
+        <vk-input id="EditMaxUsers" name="MaxUsersOverride" label="User limit (blank = plan's)" icon="users" input-type="number" />
+        <vk-input id="EditStorage" name="StorageQuotaMbOverride" label="Storage in MB (blank = plan's)" icon="database" input-type="number" />
+    </div>
+    <vk-app-picker name="apps" value="7" label="Apps for this client" id-prefix="edit" />
+    <vk-checkbox id="EditActive" name="IsActive" label="Active (people can sign in)" is-toggle="true" checked="true" />
+</vk-dialog>
+
+@section Scripts {
+    <script>
+        // fill the Edit dialog from the row's data-* and open it
+        document.addEventListener("click", function (e) {
+            var b = e.target.closest("[data-edit-client]"); if (!b) return;
+            var d = b.dataset;
+            document.getElementById("EditTenantId").value = d.id;
+            document.getElementById("EditName").value = d.name;
+            document.getElementById("EditPlanId").value = d.plan;
+            document.getElementById("EditMaxUsers").value = "";
+            document.getElementById("EditMaxUsers").placeholder = "Now " + d.maxusers;
+            document.getElementById("EditStorage").value = "";
+            document.getElementById("EditStorage").placeholder = "Now " + d.storagemb + " MB";
+            document.getElementById("EditActive").checked = d.active === "true";
+            ["pages", "workbook", "slides"].forEach(function (k, i) { document.getElementById("edit-" + k).checked = (+d.apps & (1 << i)) !== 0; });
+            document.getElementById("editClient").showModal();
+        });
+        // temporary password box only when that option is picked
+        document.querySelectorAll('input[name="SendInvite"]').forEach(function (r) {
+            r.addEventListener("change", function () { document.getElementById("tempPassword").hidden = r.value === "true" && r.checked; });
+        });
+        // short name follows the company name until you type in it
+        (function () {
+            var name = document.getElementById("Name"), slug = document.getElementById("Slug"), touched = false;
+            slug.addEventListener("input", function () { touched = true; });
+            name.addEventListener("input", function () {
+                if (!touched) slug.value = name.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 39);
+            });
+        })();
+    </script>
+}

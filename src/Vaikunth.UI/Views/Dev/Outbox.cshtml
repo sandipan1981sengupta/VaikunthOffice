@@ -1,0 +1,31 @@
+@model List<Vaikunth.ServiceLibrary.OutboxEmail>
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Developer outbox";
+}
+<div class="vk-window glass vk-outbox">
+    <div class="vk-window-top">
+        <div>
+            <div class="vk-eyebrow">Developer outbox</div>
+            <h2>Emails not sent yet</h2>
+            <p class="vk-window-sub">Smtp:Host is empty, so emails are saved here instead of being sent. Set the Smtp section in appsettings.json to send real email. This page only exists in Development.</p>
+        </div>
+        <span class="vk-lock"><i class="fa fa-inbox" aria-hidden="true"></i></span>
+    </div>
+    @if (Model.Count == 0)
+    {
+        <p class="vk-empty">No emails yet. Add a client or invite someone.</p>
+    }
+    <ul class="vk-outbox-list">
+        @foreach (var m in Model)
+        {
+            <li>
+                <a href="/dev/outbox/@m.File" target="_blank">
+                    <i class="fa fa-envelope-o"></i>
+                    <span><b>@m.Subject</b><small>To @m.To · @UserExtensions.Ago(m.SavedUtc)</small></span>
+                    <i class="fa fa-external-link"></i>
+                </a>
+            </li>
+        }
+    </ul>
+</div>
