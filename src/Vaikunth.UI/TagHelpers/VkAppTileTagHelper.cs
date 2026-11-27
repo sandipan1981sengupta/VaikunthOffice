@@ -6,7 +6,7 @@ namespace Vaikunth.UI.TagHelpers;
 
 /// <summary>
 /// A big launcher tile: icon, app name, what kind of app it is, and a short line.
-///   &lt;vk-app-tile app="workbook" href="http://localhost:5102/editor" new-href=".../editor/new" /&gt;
+///   &lt;vk-app-tile app="workbook" href="/workbook/editor" new-href="/workbook/editor/new" target="_blank" /&gt;
 /// </summary>
 [HtmlTargetElement("vk-app-tile", TagStructure = TagStructure.WithoutEndTag)]
 public sealed class VkAppTileTagHelper : TagHelper
@@ -15,6 +15,8 @@ public sealed class VkAppTileTagHelper : TagHelper
     public string Href { get; set; } = "#";
     public string? NewHref { get; set; }
     public bool IsCurrent { get; set; }
+    /// <summary>"_blank" opens the app in its own browser tab.</summary>
+    public string? Target { get; set; }
     /// <summary>The client's plan doesn't include this app: shown greyed out with a lock, no links.</summary>
     public bool IsLocked { get; set; }
 
@@ -37,10 +39,11 @@ public sealed class VkAppTileTagHelper : TagHelper
                 """);
             return;
         }
+        var target = string.IsNullOrEmpty(Target) ? "" : $" target='{E(Target)}'";
         var newBtn = string.IsNullOrEmpty(NewHref) ? "" :
-            $"<a class='vk-tile-new' href='{E(NewHref)}' title='New {E(a.Name)} file'><i class='fa fa-plus'></i> New</a>";
+            $"<a class='vk-tile-new' href='{E(NewHref)}'{target} title='New {E(a.Name)} file'><i class='fa fa-plus'></i> New</a>";
         output.Content.SetHtmlContent($"""
-            <a class="vk-tile-main" href="{E(Href)}">
+            <a class="vk-tile-main" href="{E(Href)}"{target}>
                 <span class="vk-tile-glow" aria-hidden="true"></span>
                 <img src="{a.IconUrl}" alt="" width="96" height="96" class="vk-tile-icon" />
                 <span class="vk-tile-name">{E(a.Name)}</span>

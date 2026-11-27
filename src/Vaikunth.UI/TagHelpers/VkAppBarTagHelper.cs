@@ -38,8 +38,10 @@ public sealed class VkAppBarTagHelper : TagHelper
             <span class="vk-appbar-fill"></span>
             <button type="button" class="vk-appbar-btn" data-cmd="present" hidden><i class="fa fa-play"></i> Present</button>
             <button type="button" class="vk-appbar-btn vk-appbar-about" data-open-dialog="aboutDialog" title="About Vaikunth Office" aria-label="About Vaikunth Office"><i class="fa fa-info-circle"></i></button>
+            <button type="button" class="vk-appbar-btn" data-cmd="fileExport" title="Download a copy ({E(SuiteApps.DownloadExt(a.App))})"><i class="fa fa-download"></i> <span class="vk-appbar-label">Download</span></button>
             <button type="button" class="vk-appbar-btn vk-share" data-cmd="share"><i class="fa fa-share-alt"></i> Share</button>
             <span class="vk-avatar tone-{AvatarTone}{(PhotoUrl is null ? "" : " has-photo")}" title="{E(UserName)}">{(PhotoUrl is null ? E(Vaikunth.DtoLibrary.Names.Initials(UserName)) : $"<img src=\"{E(PhotoUrl)}\" alt=\"\" />")}</span>
             """);
     }
+
 }

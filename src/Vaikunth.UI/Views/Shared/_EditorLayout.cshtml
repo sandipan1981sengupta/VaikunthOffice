@@ -1,5 +1,5 @@
 @inject CurrentApp Current
-@* Full-window layout for the three editors: the app bar, the ribbon, the work area and the status bar
+@* Full-window layout for the five app editors: the app bar, the ribbon, the work area and the status bar
    come from the app's own Editor/Index view (sections). *@
 <!DOCTYPE html>
 <html lang="en">
@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="~/_content/Vaikunth.UI/css/editor.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="vk-editor-body" data-app="@Current.Info.Key" style="--app:@Current.Info.Color;--app-tint:@Current.Info.Tint">
+<body class="vk-editor-body" data-app="@Current.Info.Key" data-ext="@SuiteApps.DownloadExt(Current.Info.App)" style="--app:@Current.Info.Color;--app-tint:@Current.Info.Tint">
     @Html.AntiForgeryToken()
     @RenderBody()
 
@@ -20,6 +20,38 @@
             <span class="vk-avatar tone-2">PS</span><span><b>Priya Sharma</b><small>Can edit</small></span>
         </div>
         <vk-checkbox id="shareNotify" label="Send them an email" is-toggle="true" checked="true" />
+    </vk-dialog>
+
+    @{
+        var (fmt, ext, icon, opensIn) = Current.Info.App switch
+        {
+            SuiteApp.Workbook => ("Excel", ".xlsx", "fa-file-excel-o", "Microsoft Excel"),
+            SuiteApp.Slides => ("PowerPoint", ".pptx", "fa-file-powerpoint-o", "Microsoft PowerPoint"),
+            SuiteApp.Reader => ("PDF", ".pdf", "fa-file-pdf-o", "any PDF reader"),
+            SuiteApp.Planner => ("Excel", ".xlsx", "fa-file-excel-o", "Microsoft Excel (one row per task)"),
+            _ => ("Word", ".docx", "fa-file-word-o", "Microsoft Word")
+        };
+    }
+    @* File: save on the server, or download a copy (Word, Excel, PowerPoint or PDF) *@
+    <vk-dialog id="fileDialog" title="File" icon="folder-open-o" cancel-text="Close" width="520px">
+        <div class="vk-file-actions">
+            <button type="button" class="vk-file-act" data-cmd="fileSave">
+                <i class="fa fa-cloud-upload"></i>
+                <span><b>Save on the server</b><small>Keeps it in Vaikunth Office. It shows in Recent files and you can open it from any computer.</small></span>
+            </button>
+            <button type="button" class="vk-file-act" data-cmd="fileExport">
+                <i class="fa @icon"></i>
+                <span><b>Download as @fmt (@ext)</b><small>Saves a copy on this computer that opens in @opensIn. The copy on the server stays as it is.</small></span>
+            </button>
+            <a class="vk-file-act" href="/@Current.Info.Key/editor/new">
+                <i class="fa fa-plus-square-o"></i>
+                <span><b>New @Current.Info.Name file</b><small>Starts a blank file in this tab.</small></span>
+            </a>
+            <a class="vk-file-act" href="/" target="_blank">
+                <i class="fa fa-th"></i>
+                <span><b>Vaikunth Office home</b><small>Your recent files and the other apps, in a new tab.</small></span>
+            </a>
+        </div>
     </vk-dialog>
 
     <partial name="_AboutDialog" />

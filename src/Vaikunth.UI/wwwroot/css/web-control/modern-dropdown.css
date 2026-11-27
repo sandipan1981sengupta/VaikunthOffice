@@ -1,0 +1,186 @@
+/* ===== Modern Dropdown Control =====
+   Colors/spacing come from controls-theme.css — load that file first. */
+
+.modern-dropdown {
+    position: relative;
+    width: 100%;
+    font-family: var(--ctrl-font);
+    user-select: none;
+}
+
+    .modern-dropdown.dd-disabled {
+        pointer-events: none;
+    }
+
+        .modern-dropdown.dd-disabled .dd-toggle {
+            background: var(--ctrl-bg-disabled, #f3f4f6);
+            border-color: var(--ctrl-border-disabled, #e5e7eb);
+            color: var(--ctrl-text-disabled, #9ca3af);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .modern-dropdown.dd-disabled .dd-selected {
+            color: var(--ctrl-text-disabled, #9ca3af);
+        }
+
+        .modern-dropdown.dd-disabled .dd-arrow {
+            color: var(--ctrl-text-disabled, #d1d5db);
+        }
+
+.dd-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    background: var(--ctrl-bg);
+    border: 1px solid var(--ctrl-border); /* CHANGED — was 1.5px; now matches modern-input exactly */
+    border-radius: var(--dd-radius, 0px); /* CHANGED — was 999px; now configurable via border-radius, defaults to square corners */
+    font-size: 14px;
+    color: var(--ctrl-text);
+    cursor: pointer;
+    transition: border-color .18s ease, box-shadow .18s ease;
+    box-shadow: var(--ctrl-shadow-sm);
+}
+
+    .dd-toggle:hover {
+        border-color: var(--ctrl-border-hover);
+    }
+
+.dd-selected {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.modern-dropdown:not(.has-value) .dd-selected {
+    color: var(--ctrl-text-faint);
+}
+
+.dd-arrow {
+    flex-shrink: 0;
+    color: var(--ctrl-text-muted);
+    transition: transform .2s ease, color .2s ease;
+}
+
+.modern-dropdown.open .dd-toggle {
+    border-color: var(--ctrl-accent);
+    box-shadow: 0 0 0 3px var(--ctrl-accent-ring-strong);
+}
+
+.modern-dropdown.open .dd-arrow {
+    transform: rotate(180deg);
+    color: var(--ctrl-accent);
+}
+
+/* Menu panel (holds search box + options list) */
+.dd-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    border-radius: 15px; /* match flatpickr's 15px */
+    box-shadow: var(--ctrl-shadow-calendar); /* match flatpickr's shadow instead of shadow-menu */
+    padding: 6px;
+    z-index: 60;
+    opacity: 0;
+    transform: translateY(-10px);
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .3s ease, transform .3s ease, visibility 0s linear .3s;
+}
+
+.modern-dropdown.open .dd-menu {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .3s ease, transform .3s ease, visibility 0s linear 0s;
+}
+
+/* Search box inside the popup */
+.dd-search-wrap {
+    position: relative;
+    padding: 4px 4px 8px 4px;
+    border-bottom: 1px solid var(--ctrl-border-light);
+    margin-bottom: 4px;
+}
+
+.dd-search {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color .15s ease;
+}
+
+    .dd-search:focus {
+        border-color: var(--ctrl-accent);
+    }
+
+    .dd-search::placeholder {
+        font-weight: 400;
+        color: var(--ctrl-text-faint);
+    }
+
+/* Options list */
+.dd-options {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dd-option {
+    padding: 9px 12px;
+    border-radius: var(--ctrl-radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ctrl-text-soft);
+    cursor: pointer;
+    transition: background .12s ease;
+}
+
+    .dd-option:hover {
+        background: var(--ctrl-bg-hover);
+    }
+
+    .dd-option.selected {
+        background: var(--ctrl-accent-tint);
+        color: var(--ctrl-accent-dark);
+        font-weight: 800;
+    }
+
+    .dd-option.dd-active {
+        background: var(--ctrl-bg-hover);
+    }
+
+.dd-no-results {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--ctrl-text-faint);
+    text-align: center;
+}
+
+.dd-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dd-options::-webkit-scrollbar-thumb {
+    background: var(--ctrl-scrollbar-thumb);
+    border-radius: var(--ctrl-radius-lg);
+}
+
+/* Keyboard focus visibility */
+.dd-toggle:focus-visible {
+    outline: 2px solid var(--ctrl-accent);
+    outline-offset: 2px;
+}

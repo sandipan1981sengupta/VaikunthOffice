@@ -14,7 +14,6 @@ public sealed class StorageOptions
     /// <summary>
     /// Folder for the files, e.g. "D:\\VaikunthFiles" or a share "\\\\fileserver\\VaikunthFiles".
     /// Leave empty to use App_Data\VaikunthFiles inside the folder where the app is hosted.
-    /// When the three apps run on different servers or folders, give all three the same shared folder.
     /// </summary>
     public string RootPath { get; set; } = "";
 
@@ -43,6 +42,9 @@ public interface IDocumentFileStore
 
     Task<string?> ReadAsync(string relativePath, CancellationToken ct = default);
     bool Exists(string relativePath);
+
+    /// <summary>Removes a deleted client's folder ({client}/) with all its files. Returns false when it couldn't (the error is logged).</summary>
+    bool DeleteClientFolder(Guid tenantId);
 }
 
 public sealed class DocumentFileStore : IDocumentFileStore
@@ -105,4 +107,19 @@ public sealed class DocumentFileStore : IDocumentFileStore
     }
 
     public bool Exists(string relativePath) => File.Exists(Full(relativePath));
+
+    public bool DeleteClientFolder(Guid tenantId)
+    {
+        var folder = Full($"{tenantId:N}");
+        try
+        {
+            if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Could not remove the files of deleted client {Tenant} in {Folder}", tenantId, folder);
+            return false;
+        }
+    }
 }

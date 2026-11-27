@@ -1,0 +1,117 @@
+@model DocumentDto
+@{
+    Layout = "_EditorLayout";   // full-window editor frame from Vaikunth.UI
+    ViewData["Title"] = Model.Title;
+}
+@section Styles { <link rel="stylesheet" href="~/_content/Vaikunth.DhruvaPlanner/css/planner.css" asp-append-version="true" /> }
+
+<vk-app-bar app="planner" doc-title="@Model.Title" user-name="@User.DisplayName()" avatar-tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
+
+<vk-ribbon>
+    <vk-ribbon-tab title="Home" active="true">
+        <vk-ribbon-group label="Tasks">
+            <vk-ribbon-btn cmd="newTask" icon="plus-square" text="New task" size="large" tooltip="Add a task (N)" />
+            <vk-ribbon-btn cmd="newMilestone" icon="flag" text="Milestone" size="large" tooltip="Add a milestone: one important date" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="View">
+            <vk-ribbon-btn cmd="view" arg="board" icon="columns" text="Board" size="large" css-class="pl-view-btn" />
+            <vk-ribbon-btn cmd="view" arg="list" icon="list-ul" text="List" size="large" css-class="pl-view-btn" />
+            <vk-ribbon-btn cmd="view" arg="timeline" icon="align-left" text="Timeline" size="large" css-class="pl-view-btn" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Show">
+            <span class="pl-filter"><i class="fa fa-user-o" aria-hidden="true"></i><select id="ownerFilter" aria-label="Owner"><option value="">Everyone</option></select></span>
+            <span class="pl-filter"><i class="fa fa-search" aria-hidden="true"></i><input id="taskSearch" placeholder="Find a task" aria-label="Find a task" /></span>
+            <vk-ribbon-btn cmd="hideDone" icon="check-square-o" text="Hide done" id="hideDoneBtn" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Project">
+            <vk-ribbon-btn cmd="projectInfo" icon="info-circle" text="Project details" size="large" tooltip="Name, dates and description" />
+            <vk-ribbon-btn cmd="fileExport" icon="file-excel-o" text="Excel" size="large" tooltip="Download the tasks as an Excel file" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Board">
+        <vk-ribbon-group label="Columns">
+            <vk-ribbon-btn cmd="addColumn" icon="plus" text="Add column" size="large" />
+            <vk-ribbon-btn cmd="renameColumns" icon="pencil" text="Rename columns" size="large" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Timeline">
+        <vk-ribbon-group label="Scale">
+            <vk-ribbon-btn cmd="scale" arg="day" icon="calendar-o" text="Days" css-class="pl-scale-btn" />
+            <vk-ribbon-btn cmd="scale" arg="week" icon="calendar" text="Weeks" css-class="pl-scale-btn" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Go to">
+            <vk-ribbon-btn cmd="today" icon="crosshairs" text="Today" size="large" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+</vk-ribbon>
+
+<div class="vk-work pl-work" id="work">
+    @* project summary strip *@
+    <section class="pl-summary">
+        <div class="pl-proj">
+            <img src="/_content/Vaikunth.UI/images/app-planner.svg" width="40" height="40" alt="" />
+            <div><b id="projName">Project</b><small id="projDates"></small></div>
+        </div>
+        <div class="pl-kpi"><span>Tasks</span><b id="kTasks">0</b></div>
+        <div class="pl-kpi"><span>Done</span><b id="kDone">0%</b><i class="pl-bar"><i id="kDoneBar"></i></i></div>
+        <div class="pl-kpi warn"><span>Overdue</span><b id="kLate">0</b></div>
+        <div class="pl-kpi"><span>Due in 7 days</span><b id="kSoon">0</b></div>
+        <div class="pl-kpi"><span>Next milestone</span><b id="kMile" class="pl-kpi-small">None</b></div>
+    </section>
+
+    <section class="pl-pane" data-view="board"><div class="pl-board" id="board"></div></section>
+    <section class="pl-pane" data-view="list" hidden>
+        <div class="pl-list-wrap">
+            <table class="pl-list">
+                <thead><tr>
+                    <th data-sort="title">Task</th><th data-sort="status">Status</th><th data-sort="priority">Priority</th><th data-sort="owner">Owner</th>
+                    <th data-sort="start">Start</th><th data-sort="due">Due</th><th data-sort="progress">Progress</th>
+                </tr></thead>
+                <tbody id="listBody"></tbody>
+            </table>
+        </div>
+    </section>
+    <section class="pl-pane" data-view="timeline" hidden><div class="pl-tl" id="timeline"></div></section>
+</div>
+
+<vk-status-bar show-zoom="false">
+    <span id="statTasks"><i class="fa fa-tasks" style="color:#5B2A86"></i> 0 tasks</span>
+    <span id="statView"></span>
+    <span class="vk-muted">Drag cards between columns · double-click a task to edit it</span>
+</vk-status-bar>
+
+@* one task *@
+<vk-dialog id="taskDialog" title="Task" icon="check-square-o" ok-text="Save task" ok-cmd="saveTask" cancel-text="Cancel" width="600px">
+    <vk-input id="tTitle" label="Task" icon="check-square-o" mandatory="true" max-length="200" placeholder="What needs doing?" />
+    <div class="vk-form-2">
+        <div class="vk-field"><label class="vk-label" for="tStatus">Status</label><div class="vk-input-box"><select id="tStatus" class="vk-input vk-select"></select><i class="fa fa-angle-down vk-select-caret"></i></div></div>
+        <vk-select id="tPriority" label="Priority" options="low|Low,medium|Medium,high|High" selected="medium" />
+    </div>
+    <div class="vk-form-2">
+        <vk-input id="tOwner" label="Owner" icon="user-o" max-length="120" placeholder="Who does it?" />
+        <div class="vk-field"><label class="vk-label" for="tProgress">Progress <b id="tProgressVal">0%</b></label><input type="range" id="tProgress" min="0" max="100" step="5" value="0" class="pl-range" /></div>
+    </div>
+    <div class="vk-form-2">
+        <vk-input id="tStart" label="Start" input-type="date" />
+        <vk-input id="tDue" label="Due" input-type="date" />
+    </div>
+    <vk-checkbox id="tMilestone" label="Milestone" description="One important date (a diamond on the timeline)." is-toggle="true" />
+    <div class="vk-field"><label class="vk-label" for="tNotes">Notes</label><textarea id="tNotes" class="vk-input pl-notes" rows="3" maxlength="2000"></textarea></div>
+    <button type="button" class="vk-link-btn pl-del" data-cmd="deleteTask" id="tDelete"><i class="fa fa-trash-o"></i> Delete this task</button>
+</vk-dialog>
+
+@* the project itself *@
+<vk-dialog id="projectDialog" title="Project details" icon="info-circle" ok-text="Save" ok-cmd="saveProject" cancel-text="Cancel" width="560px">
+    <vk-input id="pName" label="Project name" icon="star-o" mandatory="true" max-length="200" />
+    <div class="vk-form-2">
+        <vk-input id="pStart" label="Starts" input-type="date" />
+        <vk-input id="pEnd" label="Ends" input-type="date" />
+    </div>
+    <div class="vk-field"><label class="vk-label" for="pDesc">What is it for?</label><textarea id="pDesc" class="vk-input pl-notes" rows="3" maxlength="2000"></textarea></div>
+</vk-dialog>
+
+@section Scripts {
+    <script id="docData" type="application/json">@Html.Raw(Model.Content.Replace("</", "<\\/"))</script>
+    <script>VK.docId = "@Model.DocumentId"; VK.me = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(User.DisplayName()));</script>
+    <script src="~/_content/Vaikunth.DhruvaPlanner/js/planner.js" asp-append-version="true"></script>
+}

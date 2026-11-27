@@ -15,6 +15,13 @@ public sealed class VkDialogTagHelper : TagHelper
 {
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
+    /// <summary>A short line under the title.</summary>
+    public string? Subtitle { get; set; }
+    /// <summary>Icon on the OK button, e.g. "check".</summary>
+    public string? OkIcon { get; set; }
+    /// <summary>"danger" makes the OK button red (delete).</summary>
+    public string? OkTone { get; set; }
+    public string? OkId { get; set; }
     public string? Icon { get; set; }
     public string? OkText { get; set; }
     public string? OkCmd { get; set; }
@@ -33,14 +40,14 @@ public sealed class VkDialogTagHelper : TagHelper
         output.Attributes.SetAttribute("style", $"width:min({Width}, calc(100vw - 32px))");
         var posts = !string.IsNullOrEmpty(Action);
         var ok = string.IsNullOrEmpty(OkText) ? "" : posts
-            ? $"<button type='submit' class='vk-btn vk-btn-primary'>{E(OkText)}</button>"
-            : $"<button type='button' class='vk-btn vk-btn-primary' data-cmd='{E(OkCmd)}'>{E(OkText)}</button>";
+            ? $"<button type='submit' class='vk-btn {(OkTone == "danger" ? "vk-btn-danger" : "vk-btn-primary")}'{(OkId is null ? "" : $" id='{E(OkId)}'")}>{(OkIcon is null ? "" : $"<i class='{Fa(OkIcon)}'></i> ")}{E(OkText)}</button>"
+            : $"<button type='button' class='vk-btn {(OkTone == "danger" ? "vk-btn-danger" : "vk-btn-primary")}' data-cmd='{E(OkCmd)}'{(OkId is null ? "" : $" id='{E(OkId)}'")}>{(OkIcon is null ? "" : $"<i class='{Fa(OkIcon)}'></i> ")}{E(OkText)}</button>";
         var close = posts ? " formmethod='dialog' formnovalidate" : "";
         output.Content.SetHtmlContent($"""
             <form method="{(posts ? "post" : "dialog")}"{(posts ? $" action='{E(Action)}'" : "")}{(Enctype is null ? "" : $" enctype='{E(Enctype)}'")} class="vk-dialog-inner">
                 <div class="vk-dialog-head">
                     {(Icon is null ? "" : $"<span class='vk-dialog-ic'><i class='{Fa(Icon)}'></i></span>")}
-                    <h3>{E(Title)}</h3>
+                    <div class="vk-dialog-titles"><h3>{E(Title)}</h3>{(Subtitle is null ? "" : $"<p class='vk-dialog-sub'>{E(Subtitle)}</p>")}</div>
                     <button class="vk-dialog-x" value="cancel" aria-label="Close"{close}><i class="fa fa-times"></i></button>
                 </div>
                 <div class="vk-dialog-body">{body}</div>

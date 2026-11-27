@@ -23,11 +23,22 @@ public sealed class MockDocumentService : IDocumentService
     public static readonly Guid SamplePages = Guid.Parse("a1000000-0000-0000-0000-000000000001");
     public static readonly Guid SampleWorkbook = Guid.Parse("b2000000-0000-0000-0000-000000000002");
     public static readonly Guid SampleSlides = Guid.Parse("c3000000-0000-0000-0000-000000000003");
+    public static readonly Guid SampleReader = Guid.Parse("d4000000-0000-0000-0000-000000000004");
+    public static readonly Guid SamplePlanner = Guid.Parse("e5000000-0000-0000-0000-000000000005");
 
     private readonly IDocumentFileStore _files;
     private readonly StorageOptions _storage;
 
     static MockDocumentService() => Seed();
+
+    /// <summary>A deleted client's files leave the in-memory list.</summary>
+    public static void ForgetTenant(Guid tenantId)
+    {
+        foreach (var id in TenantOf.Where(x => x.Value == tenantId).Select(x => x.Key).ToList())
+        {
+            Store.TryRemove(id, out _); TenantOf.TryRemove(id, out _); SizeOf.TryRemove(id, out _); SeedContent.TryRemove(id, out _);
+        }
+    }
 
     public MockDocumentService(IDocumentFileStore files, Microsoft.Extensions.Options.IOptions<StorageOptions> storage)
     {
@@ -35,10 +46,11 @@ public sealed class MockDocumentService : IDocumentService
     }
 
     /// <summary>File counts and size for one client (the Clients page).</summary>
-    internal static (int Pages, int Workbooks, int Decks, long Bytes) CountsFor(Guid tenantId)
+    internal static (int Pages, int Workbooks, int Decks, int Pdfs, int Projects, long Bytes) CountsFor(Guid tenantId)
     {
         var mine = Store.Values.Where(d => TenantOf.TryGetValue(d.DocumentId, out var t) && t == tenantId).ToList();
         return (mine.Count(d => d.App == SuiteApp.Pages), mine.Count(d => d.App == SuiteApp.Workbook), mine.Count(d => d.App == SuiteApp.Slides),
+            mine.Count(d => d.App == SuiteApp.Reader), mine.Count(d => d.App == SuiteApp.Planner),
             mine.Sum(d => SizeOf.GetValueOrDefault(d.DocumentId)));
     }
 
@@ -116,7 +128,7 @@ public sealed class MockDocumentService : IDocumentService
                 <ul>
                   <li>Ship the three apps with the everyday editing features people expect.</li>
                   <li>Sign in once and move between apps from the launcher.</li>
-                  <li>Keep every file in our own SQL Server database.</li>
+                  <li>Keep every file on our own server; the database keeps only the details.</li>
                 </ul>
                 <blockquote>Yogah karmasu kaushalam: Excellence in every action.</blockquote>
                 <h2>Milestones</h2>
@@ -182,6 +194,46 @@ public sealed class MockDocumentService : IDocumentService
                 ]},
             ]
         }, 6);
+
+        // Shashvata Reader: a team handbook with a bookmark and two notes
+        using (var pdf = typeof(MockDocumentService).Assembly.GetManifestResourceStream("Vaikunth.Samples.team-handbook.pdf"))
+        {
+            if (pdf is not null)
+            {
+                using var ms = new MemoryStream();
+                pdf.CopyTo(ms);
+                Add(SampleReader, SuiteApp.Reader, "Team handbook", new ReaderContent
+                {
+                    FileName = "Team handbook.pdf", Pdf = Convert.ToBase64String(ms.ToArray()), SizeBytes = ms.Length, Pages = 4,
+                    Bookmarks = [3],
+                    Notes =
+                    [
+                        new ReaderNoteDto { Id = "n1", Page = 1, Text = "Share this with every new joiner in their first week.", Color = "gold", By = "Priya Sharma", At = DateTime.UtcNow.AddDays(-2) },
+                        new ReaderNoteDto { Id = "n2", Page = 3, Text = "Planner steps: let's follow these for the launch project.", Color = "blue", By = "Rohan Das", At = DateTime.UtcNow.AddDays(-1) }
+                    ]
+                }, 2, starred: true);
+            }
+        }
+
+        // Dhruva Planner: the launch project, with tasks across the board and the timeline
+        var d0 = DateOnly.FromDateTime(DateTime.Today).AddDays(-10);
+        Add(SamplePlanner, SuiteApp.Planner, "Vaikunth Office launch", new PlannerContent
+        {
+            Description = "Take Vaikunth Office to the first three client companies.",
+            Start = d0, End = d0.AddDays(41),
+            Tasks =
+            [
+                new PlannerTaskDto { Id = "t1", Title = "Agree launch goals", Status = "done", Priority = "high", Owner = "Priya Sharma", Start = d0, Due = d0.AddDays(3), Progress = 100 },
+                new PlannerTaskDto { Id = "t2", Title = "Finish the five app icons", Status = "done", Owner = "Arjun Nair", Start = d0.AddDays(2), Due = d0.AddDays(7), Progress = 100 },
+                new PlannerTaskDto { Id = "t3", Title = "Super admin screen", Status = "review", Priority = "high", Owner = "Rohan Das", Start = d0.AddDays(5), Due = d0.AddDays(12), Progress = 90 },
+                new PlannerTaskDto { Id = "t4", Title = "Shashvata Reader: notes and bookmarks", Status = "doing", Owner = "Rohan Das", Start = d0.AddDays(8), Due = d0.AddDays(16), Progress = 60 },
+                new PlannerTaskDto { Id = "t5", Title = "Dhruva Planner: board and timeline", Status = "doing", Priority = "high", Owner = "Fatima Khan", Start = d0.AddDays(8), Due = d0.AddDays(18), Progress = 45 },
+                new PlannerTaskDto { Id = "t6", Title = "Price list for the three plans", Status = "todo", Owner = "Fatima Khan", Start = d0.AddDays(6), Due = d0.AddDays(9), Notes = "Starter free, Business ₹149, Enterprise ₹299 per user a month." },
+                new PlannerTaskDto { Id = "t7", Title = "Test on SQL Server", Status = "todo", Priority = "medium", Owner = "Arjun Nair", Start = d0.AddDays(16), Due = d0.AddDays(24) },
+                new PlannerTaskDto { Id = "t8", Title = "Train the client admins", Status = "todo", Priority = "low", Owner = "Meera Iyer", Start = d0.AddDays(25), Due = d0.AddDays(32) },
+                new PlannerTaskDto { Id = "t9", Title = "Go live", Status = "todo", Priority = "high", Owner = "Priya Sharma", Start = d0.AddDays(35), Due = d0.AddDays(35), Milestone = true }
+            ]
+        }, 1, starred: true);
 
         Add(Guid.NewGuid(), SuiteApp.Pages, "Meeting notes, 24 November", new PagesContent { Html = "<h1>Meeting notes</h1><p>Agreed the launcher design and the three app colours.</p>" }, 26);
         Add(Guid.NewGuid(), SuiteApp.Workbook, "Team budget", new WorkbookContent { Sheets = [new SheetDto()] }, 50);

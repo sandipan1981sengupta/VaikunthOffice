@@ -1,0 +1,214 @@
+/* ===== Modern Dropdown With Label Control =====
+   Separate from modern-dropdown.css — uses a "ddwl-" prefix throughout so
+   both controls can coexist on the same page with zero collision.
+   Colors/spacing come from controls-theme.css — load that file first. */
+
+.modern-dropdown-with-label-wrapper {
+    width: 100%;
+    font-family: var(--ctrl-font);
+}
+
+.ddwl-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ctrl-accent-dark);
+}
+
+.ddwl-required {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.modern-dropdown-with-label {
+    position: relative;
+    width: 100%;
+    font-family: var(--ctrl-font);
+    user-select: none;
+}
+
+    .modern-dropdown-with-label.ddwl-disabled {
+        pointer-events: none;
+    }
+
+        .modern-dropdown-with-label.ddwl-disabled .ddwl-toggle {
+            background: var(--ctrl-bg-disabled, #f3f4f6);
+            border-color: var(--ctrl-border-disabled, #e5e7eb);
+            color: var(--ctrl-text-disabled, #9ca3af);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .modern-dropdown-with-label.ddwl-disabled .ddwl-selected {
+            color: var(--ctrl-text-disabled, #9ca3af);
+        }
+
+        .modern-dropdown-with-label.ddwl-disabled .ddwl-arrow {
+            color: var(--ctrl-text-disabled, #d1d5db);
+        }
+
+.ddwl-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    background: var(--ctrl-bg);
+    border: 1px solid var(--ctrl-border); /* CHANGED — was 1.5px; now matches modern-input exactly */
+    border-radius: var(--ddwl-radius, 0px); /* configurable via border-radius; defaults to square corners (0) if not set */
+    font-size: 14px;
+    color: var(--ctrl-text);
+    cursor: pointer;
+    transition: border-color .18s ease, box-shadow .18s ease;
+    box-shadow: var(--ctrl-shadow-sm);
+}
+
+    .ddwl-toggle:hover {
+        border-color: var(--ctrl-border-hover);
+    }
+
+.ddwl-selected {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.modern-dropdown-with-label:not(.has-value) .ddwl-selected {
+    color: var(--ctrl-text-faint);
+}
+
+.ddwl-icon-error {
+    flex-shrink: 0;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+}
+
+.ddwl-arrow {
+    flex-shrink: 0;
+    color: var(--ctrl-text-muted);
+    transition: transform .2s ease, color .2s ease;
+}
+
+.modern-dropdown-with-label.open .ddwl-toggle {
+    border-color: var(--ctrl-accent);
+    box-shadow: 0 0 0 3px var(--ctrl-accent-ring-strong);
+}
+
+.modern-dropdown-with-label.open .ddwl-arrow {
+    transform: rotate(180deg);
+    color: var(--ctrl-accent);
+}
+
+/* Menu panel (holds search box + options list) */
+.ddwl-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    border-radius: 15px;
+    box-shadow: var(--ctrl-shadow-calendar);
+    padding: 6px;
+    z-index: 60;
+    opacity: 0;
+    transform: translateY(-10px);
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .3s ease, transform .3s ease, visibility 0s linear .3s;
+}
+
+.modern-dropdown-with-label.open .ddwl-menu {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .3s ease, transform .3s ease, visibility 0s linear 0s;
+}
+
+/* Search box inside the popup */
+.ddwl-search-wrap {
+    position: relative;
+    padding: 4px 4px 8px 4px;
+    border-bottom: 1px solid var(--ctrl-border-light);
+    margin-bottom: 4px;
+}
+
+.ddwl-search {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color .15s ease;
+}
+
+    .ddwl-search:focus {
+        border-color: var(--ctrl-accent);
+    }
+
+    .ddwl-search::placeholder {
+        font-weight: 400;
+        color: var(--ctrl-text-faint);
+    }
+
+/* Options list */
+.ddwl-options {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ddwl-option {
+    padding: 9px 12px;
+    border-radius: var(--ctrl-radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ctrl-text-soft);
+    cursor: pointer;
+    transition: background .12s ease;
+}
+
+    .ddwl-option:hover {
+        background: var(--ctrl-bg-hover);
+    }
+
+    .ddwl-option.selected {
+        background: var(--ctrl-accent-tint);
+        color: var(--ctrl-accent-dark);
+        font-weight: 800;
+    }
+
+    .ddwl-option.ddwl-active {
+        background: var(--ctrl-bg-hover);
+    }
+
+.ddwl-no-results {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--ctrl-text-faint);
+    text-align: center;
+}
+
+.ddwl-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ddwl-options::-webkit-scrollbar-thumb {
+    background: var(--ctrl-scrollbar-thumb);
+    border-radius: var(--ctrl-radius-lg);
+}
+
+/* Keyboard focus visibility */
+.ddwl-toggle:focus-visible {
+    outline: 2px solid var(--ctrl-accent);
+    outline-offset: 2px;
+}

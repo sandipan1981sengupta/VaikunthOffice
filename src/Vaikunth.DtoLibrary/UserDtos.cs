@@ -28,7 +28,8 @@ public sealed class CreateUserRequest
 public sealed record TeamMemberDto(
     Guid UserId, string DisplayName, string Email, string Role, int AvatarTone, bool IsActive,
     /// <summary>Added but hasn't set a password from the email link yet.</summary>
-    bool IsInvited, DateTime CreatedUtc, DateTime? LastLoginUtc, string? InvitedByName, long PhotoVersion = 0)
+    bool IsInvited, DateTime CreatedUtc, DateTime? LastLoginUtc, string? InvitedByName, long PhotoVersion = 0,
+    string? Department = null, string? JobTitle = null, DateOnly? JoiningDate = null)
 {
     public string Status => !IsActive ? "Off" : IsInvited ? "Invited" : "Active";
 }
@@ -41,6 +42,36 @@ public sealed class InviteRequest
     public string DisplayName { get; set; } = "";
     public string Email { get; set; } = "";
     public string Role { get; set; } = AppRoles.Member;
+    public string? Department { get; set; }
+    /// <summary>Their job, e.g. "Accountant" (Role above is what they may do in Vaikunth Office).</summary>
+    public string? JobTitle { get; set; }
+    public DateOnly? JoiningDate { get; set; }
+}
+
+/// <summary>A client admin corrects a person's details on the People page (Vaikunth_User_UpdateDetails).</summary>
+public sealed class UpdateMemberRequest
+{
+    public Guid TenantId { get; set; }
+    public Guid UserId { get; set; }
+    public string DisplayName { get; set; } = "";
+    public string? Department { get; set; }
+    public string? JobTitle { get; set; }
+    public DateOnly? JoiningDate { get; set; }
+}
+
+/// <summary>Checks shared by the SQL and mock services.</summary>
+public static class MemberRules
+{
+    public static string? Validate(string? displayName, string? department, string? jobTitle, DateOnly? joiningDate)
+    {
+        if (string.IsNullOrWhiteSpace(displayName)) return "Enter the person's name.";
+        if ((department?.Length ?? 0) > 80 || (jobTitle?.Length ?? 0) > 80) return "Department and job title can be at most 80 characters.";
+        if (joiningDate is DateOnly d && (d.Year < 1950 || d > DateOnly.FromDateTime(DateTime.Today.AddYears(1))))
+            return "Check the joining date.";
+        return null;
+    }
+
+    public static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
 
 /// <summary>The person behind an email (for "Forgot password?").</summary>

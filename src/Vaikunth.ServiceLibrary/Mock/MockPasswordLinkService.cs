@@ -22,14 +22,14 @@ public sealed class MockPasswordLinkService : IPasswordLinkService
     {
         if (!MockData.Links.TryGetValue(Key(token), out var l) || PersonOf(l.UserId) is not { } p) return Task.FromResult<PasswordLinkInfo?>(null);
         var t = MockData.Tenants[p.TenantId!.Value];
-        return Task.FromResult<PasswordLinkInfo?>(new PasswordLinkInfo(l.Purpose, l.ExpiresUtc, l.UsedUtc, p.DisplayName, p.Email, p.IsActive, t.Name, t.IsActive));
+        return Task.FromResult<PasswordLinkInfo?>(new PasswordLinkInfo(l.Purpose, l.ExpiresUtc, l.UsedUtc, p.DisplayName, p.Email, p.IsActive, t.Name, t.IsActive && !t.BillingBlocked));
     }
 
     public Task<PasswordLinkUseResult> UseAsync(string token, string newPassword)
     {
         if (!MockData.Links.TryGetValue(Key(token), out var l) || l.UsedUtc is not null || l.ExpiresUtc <= DateTime.UtcNow || PersonOf(l.UserId) is not { } p)
             return Task.FromResult(PasswordLinkUseResult.Invalid);
-        if (!p.IsActive || !MockData.Tenants[p.TenantId!.Value].IsActive) return Task.FromResult(PasswordLinkUseResult.Inactive);
+        if (!p.IsActive || !MockData.Tenants[p.TenantId!.Value].IsActive || MockData.Tenants[p.TenantId!.Value].BillingBlocked) return Task.FromResult(PasswordLinkUseResult.Inactive);
         p.Password = newPassword;
         l.UsedUtc = DateTime.UtcNow;
         return Task.FromResult(PasswordLinkUseResult.Done);

@@ -1,0 +1,1668 @@
+/* =========================================================
+   MODERN TABLE — CLIENT-SIDE MODE
+   ========================================================= */
+
+.modern-table-wrapper {
+    width: var(--mt-wrapper-width, 100%);
+    height: var(--mt-wrapper-height, auto); /* Flexibly takes defined height */
+    display: flex; /* Flex column layout prevents overflowing */
+    flex-direction: column;
+    font-family: var(--ctrl-font);
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-lg);
+    background: var(--ctrl-bg);
+    box-shadow: var(--ctrl-shadow-sm);
+    overflow: hidden;
+}
+
+/* ---- Toolbar ---- */
+.mt-toolbar {
+    flex-shrink: 0; /* Keeps toolbar fixed at the top */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 14px; /* compact toolbar */
+    border-bottom: 1px solid var(--ctrl-border-light);
+    background: var(--ctrl-bg-soft);
+    flex-wrap: wrap;
+}
+
+.mt-toolbar-left {
+    display: flex;
+    align-items: center; /* was flex-end — with the labeled search-input now inline (not stacked), center keeps every control's middle aligned on one row */
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.mt-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mt-title-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--mt-icon-bg, var(--ctrl-text-faint));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mt-icon-color, #007bff);
+    margin: var(--mt-icon-margin, 0);
+    flex-shrink: 0;
+}
+
+    .mt-title-icon i {
+        font-size: var(--mt-icon-size, 20px);
+    }
+
+.mt-title-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ctrl-text);
+    white-space: nowrap;
+}
+
+.mt-search-wrap {
+    position: relative;
+    width: 260px;
+    max-width: 100%;
+}
+
+.mt-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #007bff;
+    pointer-events: none;
+    font-size: 15px;
+}
+
+.mt-search {
+    width: 100%;
+    height: 30px;
+    padding: 0 12px 0 36px;
+    border: 1.5px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+    .mt-search:focus {
+        border-color: var(--ctrl-accent);
+        box-shadow: 0 0 0 3px var(--ctrl-accent-ring);
+    }
+
+/* ---- "Filters" toggle button (ShowFilterButton) ----
+   Sits before the search box. Clicking it toggles .mt-filters-open on the
+   wrapper, which reveals the per-column filter row. The count badge shows how
+   many column filters are active (visible even while the row is collapsed).
+   Visual language matches the rest of the toolbar: same pill radius as the
+   toolbar dropdowns/search box, the app's own gradient for the "active/open"
+   state (same gradient .mt-page-active and the round search buttons use),
+   and a soft resting shadow so it reads as a real control, not flat text. */
+.mt-filter-toggle-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 14px 0 12px;
+    border: 1.5px solid var(--ctrl-border);
+    border-radius: 999px;
+    background: var(--ctrl-bg);
+    color: var(--ctrl-text-soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: var(--ctrl-font);
+    letter-spacing: .01em;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+    transition: border-color .18s ease, color .18s ease, background .2s ease, box-shadow .2s ease, transform .12s ease;
+}
+
+    .mt-filter-toggle-btn:hover {
+        border-color: var(--ctrl-accent);
+        color: var(--ctrl-accent);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, .08);
+    }
+
+    .mt-filter-toggle-btn:active {
+        transform: translateY(1px) scale(.98);
+    }
+
+    .mt-filter-toggle-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--ctrl-accent-ring);
+    }
+
+    .mt-filter-toggle-btn .mt-filter-toggle-icon {
+        display: inline-flex;
+        flex-shrink: 0;
+        transition: transform .18s ease, color .18s ease;
+    }
+
+    .mt-filter-toggle-btn .mt-filter-toggle-chevron {
+        display: inline-flex;
+        flex-shrink: 0;
+        opacity: .55;
+        margin-left: -1px;
+        transition: transform .22s cubic-bezier(.4,0,.2,1), opacity .18s ease;
+    }
+
+/* Open state: filled gradient pill, same gradient token the pagination's
+   active page and the round search buttons already use elsewhere in this
+   component, so the "on" state reads as consistent with the rest of the UI. */
+.mt-filters-open .mt-filter-toggle-btn {
+    border-color: transparent;
+    background: var(--app-gradient, var(--ctrl-accent));
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, .28);
+}
+
+    .mt-filters-open .mt-filter-toggle-btn:hover {
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, .34);
+    }
+
+    .mt-filters-open .mt-filter-toggle-btn .mt-filter-toggle-chevron {
+        opacity: .9;
+        transform: rotate(180deg);
+    }
+
+/* Filters active but panel currently collapsed: a quieter tinted state (not
+   the full gradient) so "filters are applied" and "the panel is open right
+   now" read as two distinct, legible states rather than looking identical. */
+.mt-filter-toggle-btn.mt-filter-active:not(.mt-filters-open .mt-filter-toggle-btn) {
+    border-color: var(--ctrl-accent);
+    color: var(--ctrl-accent-dark, var(--ctrl-accent));
+    background: var(--ctrl-accent-soft);
+}
+
+.mt-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ctrl-accent, #2563eb);
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1;
+    box-sizing: border-box;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .18);
+}
+
+/* On the quieter "active but collapsed" tint, the badge should read as an
+   accent chip rather than a white pill floating on a light background. */
+.mt-filter-toggle-btn.mt-filter-active:not(.mt-filters-open .mt-filter-toggle-btn) .mt-filter-count {
+    background: var(--ctrl-accent, #2563eb);
+    color: #fff;
+    box-shadow: none;
+}
+
+/* Filter row is collapsed until the Filters button opens it.
+   Tables with ShowFilterButton="false" (no .mt-has-filter-btn) keep the row always visible. */
+.mt-has-filter-btn:not(.mt-filters-open) .mt-filter-row {
+    display: none;
+}
+
+/* ---- Mobile "Options" trigger + popup sheet (base/desktop state) ----
+   These three elements are always present in the DOM (ModernTable.cs
+   renders them whenever Filters/Search/Columns exist at all), so above
+   the mobile breakpoint they need to be explicitly hidden — the mobile
+   media query further down is the only place that turns them on. */
+.mt-mobile-options-btn,
+.mt-mobile-sheet-backdrop,
+.mt-mobile-sheet {
+    display: none;
+}
+
+/* ---- Column visibility toggle ---- */
+.mt-col-toggle-wrap {
+    position: relative;
+}
+
+.mt-col-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1.5px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-md);
+    background: var(--ctrl-bg);
+    color: var(--ctrl-text-soft);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--ctrl-font);
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+}
+
+    .mt-col-toggle-btn:hover {
+        border-color: var(--ctrl-accent);
+        color: var(--ctrl-accent);
+    }
+
+.mt-col-toggle-wrap.open .mt-col-toggle-btn {
+    border-color: var(--ctrl-accent);
+    color: var(--ctrl-accent);
+}
+
+.mt-col-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 180px;
+    background: var(--ctrl-bg);
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-lg);
+    box-shadow: var(--ctrl-shadow-menu);
+    padding: 8px;
+    z-index: 70;
+    transform-origin: top right;
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .2s cubic-bezier(.4,0,.2,1), transform .2s cubic-bezier(.4,0,.2,1), visibility 0s linear .2s;
+    /* Caller-defined starting height via ColumnPanelMaxHeight (--mt-col-panel-max-height).
+       Defaults to 260px (set by ModernTable.cs) — enough for roughly 8-9 column
+       rows before the inner list scrolls instead of the popup growing past the
+       viewport. The user can then drag .mt-col-resize-handle to make the popup
+       taller/shorter at runtime; modern-table.js writes the dragged height directly
+       to this element's inline style, which takes precedence over this max-height. */
+    max-height: var(--mt-col-panel-max-height, 260px);
+    min-height: 90px; /* keeps at least ~2-3 rows visible even if dragged very small */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* the resize handle sits inside this box, not spilling past its rounded corners */
+}
+
+.mt-col-toggle-wrap.open .mt-col-panel {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .2s cubic-bezier(.4,0,.2,1), transform .2s cubic-bezier(.4,0,.2,1), visibility 0s linear 0s;
+}
+
+/* While actively dragging the resize handle, suspend the open/close transition
+   so the panel follows the pointer immediately instead of easing toward each
+   intermediate size (modern-table.js toggles this class on mousedown/mouseup). */
+.mt-col-panel.mt-col-resizing {
+    transition: none !important;
+}
+
+/* Scrolls internally once content exceeds .mt-col-panel's current height, while
+   the panel's own padding/border stay put (only this inner list scrolls). */
+.mt-col-list {
+    overflow-y: auto;
+    min-height: 0; /* required for flex children to actually shrink and scroll */
+    flex: 1 1 auto;
+}
+
+/* ---- Resize grip (bottom-right corner, textarea-style) ----
+   Drag to make the column-chooser popup taller/shorter. Pure JS-driven (not
+   native CSS `resize`), because the popup's open/close animation applies a
+   CSS transform/scale to the panel, which would distort native resize's
+   pointer-delta tracking. */
+.mt-col-resize-handle {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 2px;
+    color: var(--ctrl-text-faint);
+    cursor: nwse-resize;
+    user-select: none;
+    touch-action: none;
+    flex-shrink: 0;
+    border-radius: 0 0 var(--ctrl-radius-lg) 0;
+    transition: color .12s ease, background .12s ease;
+}
+
+    .mt-col-resize-handle:hover,
+    .mt-col-resize-handle:active {
+        color: var(--ctrl-accent);
+        background: var(--ctrl-bg-hover);
+    }
+
+.mt-col-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border-radius: var(--ctrl-radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ctrl-text-soft);
+    cursor: pointer;
+    user-select: none;
+    transition: background .12s ease;
+}
+
+    .mt-col-item:hover {
+        background: var(--ctrl-bg-hover);
+    }
+
+    .mt-col-item input[type="checkbox"] {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--ctrl-accent);
+        cursor: pointer;
+    }
+
+
+/* ---- Table Body Container ---- */
+.mt-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    height: var(--mt-body-height, auto);
+    min-height: 120px;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+.mt-animated-scroll .mt-scroll {
+    scroll-behavior: smooth;
+}
+
+.mt-table {
+    width: 100%;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    font-size: 14px;
+}
+
+.mt-thead {
+    display: table-header-group !important;
+}
+
+    .mt-thead th {
+        height: var(--mt-header-height, 45px);
+        padding: 0 16px;
+        text-align: left;
+        font-size: var(--mt-header-font-size, 13px);
+        font-weight: var(--mt-header-font-weight, 700);
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--ctrl-accent-dark);
+        background: var(--ctrl-accent-soft);
+        border-bottom: 1px solid var(--ctrl-border);
+        white-space: nowrap;
+        user-select: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        will-change: transform;
+    }
+
+        .mt-thead th:hover {
+            color: var(--ctrl-accent);
+            background: var(--ctrl-accent-tint);
+        }
+
+        .mt-thead th.mt-sortable {
+            cursor: pointer;
+        }
+
+            .mt-thead th.mt-sortable:hover {
+                color: var(--ctrl-accent);
+            }
+
+.mt-sort-icon {
+    display: inline-flex;
+    margin-left: 6px;
+    vertical-align: middle;
+    opacity: .4;
+    transition: opacity .15s ease, transform .15s ease;
+}
+
+.mt-thead th.mt-sort-asc .mt-sort-icon,
+.mt-thead th.mt-sort-desc .mt-sort-icon {
+    opacity: 1;
+    color: var(--ctrl-accent);
+}
+
+.mt-thead th.mt-sort-desc .mt-sort-icon {
+    transform: rotate(180deg);
+}
+
+/* ---- Per-column filter row ---- */
+.mt-filter-row th {
+    padding: 8px 10px;
+    background: var(--ctrl-bg);
+    border-bottom: 1px solid var(--ctrl-border);
+    position: sticky;
+    top: var(--mt-header-height, 45px);
+    z-index: 9;
+    will-change: transform;
+}
+
+.mt-filter-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+    .mt-filter-input:focus {
+        border-color: var(--ctrl-accent);
+        box-shadow: 0 0 0 3px var(--ctrl-accent-ring);
+    }
+
+    .mt-filter-input::placeholder {
+        color: var(--ctrl-text-faint);
+        font-weight: 400;
+    }
+
+.mt-tbody tr {
+    cursor: pointer;
+    transition: box-shadow .2s ease;
+}
+
+    .mt-tbody tr:hover {
+        background: var(--ctrl-bg);
+        box-shadow: var(--ctrl-shadow-menu);
+        position: relative;
+        z-index: 5;
+    }
+
+    .mt-tbody tr.mt-row-danger {
+        background: var(--mt-danger-bg);
+    }
+
+        .mt-tbody tr.mt-row-danger td {
+            color: var(--mt-danger-color);
+        }
+
+    .mt-tbody tr.mt-row-warning {
+        background: var(--mt-warning-bg);
+    }
+
+        .mt-tbody tr.mt-row-warning td {
+            color: var(--mt-warning-color);
+        }
+
+    .mt-tbody tr.mt-row-success {
+        background: var(--mt-success-bg);
+    }
+
+        .mt-tbody tr.mt-row-success td {
+            color: var(--mt-success-color);
+        }
+
+    .mt-tbody tr.mt-row-selected {
+        background: var(--grid-selection);
+    }
+
+        .mt-tbody tr.mt-row-selected:hover {
+            background: var(--grid-selection-hover);
+            box-shadow: var(--ctrl-shadow-menu);
+            position: relative;
+            z-index: 5;
+        }
+
+.mt-tbody td {
+    height: var(--mt-row-height, 45px);
+    min-height: var(--mt-row-height, 45px);
+    padding: 0 16px;
+    color: var(--ctrl-accent-dark);
+    font-weight: var(--mt-row-font-weight, 600);
+    font-size: var(--mt-row-font-size, 14px);
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    overflow: hidden;
+    border-bottom: 1px solid var(--ctrl-border);
+}
+
+.mt-tbody tr.mt-row-selected td {
+    color: #fff;
+    font-weight: 700;
+}
+
+/* ---- Toggle switch ---- */
+.mt-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 21px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+    .mt-switch.mt-switch-readonly {
+        cursor: default;
+    }
+
+    .mt-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+.mt-switch-slider {
+    position: absolute;
+    inset: 0;
+    background: #7f1d1d;
+    border-radius: 21px;
+    transition: background .2s ease;
+}
+
+    .mt-switch-slider::before {
+        content: "";
+        position: absolute;
+        height: 15px;
+        width: 15px;
+        left: 3px;
+        top: 3px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform .2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+.mt-switch input:checked + .mt-switch-slider {
+    background: #16a34a;
+}
+
+    .mt-switch input:checked + .mt-switch-slider::before {
+        transform: translateX(17px);
+    }
+
+.mt-switch input:focus-visible + .mt-switch-slider {
+    outline: 2px solid var(--ctrl-accent);
+    outline-offset: 2px;
+}
+
+/* ---- Image column ---- */
+.mt-row-image {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.mt-row-image-placeholder {
+    background: var(--ctrl-border-hover);
+}
+
+.mt-empty {
+    padding: 40px 16px;
+    text-align: center;
+    color: var(--ctrl-text-faint);
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ---- Hidden column (via column visibility toggle or visible="false") ---- */
+.mt-table th.mt-col-hidden,
+.mt-table td.mt-col-hidden {
+    display: none !important;
+}
+
+/* ---- Vertical column dividers ---- */
+.mt-vertical-lines .mt-thead th,
+.mt-vertical-lines .mt-filter-row th,
+.mt-vertical-lines .mt-tbody td {
+    border-right: 1px solid var(--ctrl-border-hover);
+}
+
+    .mt-vertical-lines .mt-thead th:last-child,
+    .mt-vertical-lines .mt-filter-row th:last-child,
+    .mt-vertical-lines .mt-tbody td:last-child {
+        border-right: none;
+    }
+
+/* ---- Footer / pagination ---- */
+.mt-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px; /* was 12px 16px — more compact footer */
+    border-top: 1px solid var(--ctrl-border-light);
+    background: var(--ctrl-bg-soft);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.mt-info {
+    font-size: 12px; /* was 13px */
+    color: var(--ctrl-text-muted);
+}
+
+.mt-pagination {
+    display: flex;
+    align-items: center;
+    gap: 3px; /* was 4px */
+}
+
+.mt-page-btn {
+    min-width: 26px; /* was 34px */
+    height: 26px; /* was 34px */
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ctrl-border);
+    border-radius: 50%;
+    background: var(--ctrl-bg);
+    color: var(--ctrl-text-soft);
+    font-size: 12px; /* was 13px */
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s ease;
+}
+
+    .mt-page-btn:hover:not(:disabled) {
+        border-color: var(--app-gradient);
+        color: var(--app-gradient);
+    }
+
+    .mt-page-btn.mt-page-active {
+        background: var(--app-gradient);
+        border-color: var(--app-gradient);
+        color: #fff;
+    }
+
+    .mt-page-btn:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+    }
+
+.mt-scroll::-webkit-scrollbar {
+    height: 18px;
+    width: 18px;
+}
+
+.mt-scroll::-webkit-scrollbar-thumb {
+    background: var(--ctrl-scrollbar-thumb);
+    border-radius: var(--ctrl-radius-lg);
+    border: 4px solid var(--ctrl-bg);
+    cursor: pointer;
+}
+
+.mt-scroll::-webkit-scrollbar-track {
+    background: var(--ctrl-bg-soft);
+}
+
+/* ---- Badge column ---- */
+.mt-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--mt-badge-width, 100px);
+    max-width: 100%;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: .02em;
+    box-sizing: border-box;
+    background-color: var(--mt-badge-bg, #e5e7eb);
+    color: var(--mt-badge-color, #374151);
+}
+
+.mt-badge-plain {
+    color: inherit;
+    font-weight: inherit;
+}
+
+/* =========================================================
+   TOOLBAR DATE-RANGE / DROPDOWN / SEARCH-INPUT FILTER GROUP
+   (optional: two datepickers, OR two dropdowns, OR one
+   input-with-search — caller picks whichever combination fits,
+   via ShowFirstDatePicker/ShowSecondDatePicker/ShowSearchButton,
+   ShowFirstDropdown/ShowSecondDropdown, ShowSearchInput)
+   ========================================================= */
+
+.mt-daterange-wrap {
+    display: flex;
+    align-items: center; /* was flex-end — fields are now single-row (label+input), no stacked label to align against */
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+/* Label sits to the LEFT of its input on the same line (was stacked
+   above it) — removes the label's own text line from the toolbar's
+   vertical footprint, which is most of what was driving toolbar height. */
+.mt-daterange-field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+}
+
+.mt-daterange-label {
+    font-size: var(--mt-daterange-label-size, 11px);
+    font-weight: var(--mt-daterange-label-weight, 600);
+    color: var(--ctrl-text-soft);
+    white-space: nowrap;
+}
+
+/* Reuses .datepicker-wrapper / .modern-datepicker / .datepicker-icon
+   from the modern-datepicker component's own stylesheet — no size/skin
+   overrides here, so it stays visually consistent with datepickers used
+   elsewhere on the page. Only toolbar-specific sizing goes here.
+   Border radius is user-supplied via --mt-daterange-radius (shared by
+   both pickers) and applied to the actual input, mirroring how
+   modern-datepicker itself consumes --dp-radius. */
+.mt-daterange-field .datepicker-wrapper {
+    width: 160px; /* was 130px — more breathing room for the dd-mm-yyyy text */
+}
+
+    .mt-daterange-field .datepicker-wrapper .modern-datepicker {
+        height: 28px; /* was 30px */
+        box-sizing: border-box;
+        border-radius: var(--mt-daterange-radius, 0);
+        font-size: 12px;
+        padding-right: 26px; /* keep text clear of the smaller icon */
+    }
+
+/* Shrink the calendar icon itself — scoped to this toolbar context only,
+       so standalone <modern-datepicker> instances elsewhere keep their own size. */
+.mt-daterange-field .datepicker-icon {
+    font-size: 12px; /* was inherited default (~16px) from modern-datepicker's own CSS */
+    right: 8px;
+}
+
+    .mt-daterange-field .datepicker-icon i {
+        font-size: 12px;
+    }
+
+/* Round, icon-only search button — no text. Background, icon color, and
+   diameter are all user-supplied via CSS custom properties set on the
+   wrapper (SearchButtonBackgroundColor / SearchButtonIconColor / SearchButtonSize).
+   Shared by both the date-range and dropdown toolbar groups. */
+.mt-daterange-search-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--mt-daterange-search-size, 30px);
+    height: var(--mt-daterange-search-size, 30px);
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--mt-daterange-search-bg, var(--app-gradient, var(--ctrl-accent)));
+    color: var(--mt-daterange-search-icon-color, #fff);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity .15s ease, transform .1s ease;
+}
+
+    .mt-daterange-search-btn svg {
+        width: 55%;
+        height: 55%;
+    }
+
+    .mt-daterange-search-btn:hover {
+        opacity: .9;
+    }
+
+    .mt-daterange-search-btn:active {
+        transform: translateY(1px);
+    }
+
+.mt-mobile-mode .mt-daterange-field .datepicker-wrapper {
+    width: 140px;
+}
+
+/* ---- Toolbar dropdown (ShowFirstDropdown / ShowSecondDropdown) ----
+   Reuses modern-dropdown's own dd-* classes/behavior shape so it looks
+   identical to a standalone <modern-dropdown>. Sizing here is scoped to
+   .mt-toolbar-dd so it doesn't affect modern-dropdown instances used
+   elsewhere on the page. Radius/width are user-supplied via
+   --mt-toolbar-dd-radius / --mt-toolbar-dd-width set on the wrapper. */
+.mt-toolbar-dd {
+    position: relative;
+    display: inline-block !important; /* override base .modern-dropdown's display:block, which was stacking these vertically */
+    width: var(--mt-toolbar-dd-width, 160px) !important; /* override base .modern-dropdown's width:100% */
+    max-width: var(--mt-toolbar-dd-width, 160px);
+    margin: 0 !important; /* override any base .modern-dropdown margin-bottom that was adding vertical spacing */
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+    .mt-toolbar-dd .dd-toggle {
+        width: 100%;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 0 10px;
+        border: 1.5px solid var(--ctrl-border);
+        border-radius: var(--mt-toolbar-dd-radius, var(--ctrl-radius-md));
+        background: var(--ctrl-bg);
+        color: var(--ctrl-text);
+        font-size: 12px;
+        font-weight: 500;
+        font-family: var(--ctrl-font);
+        cursor: pointer;
+        box-sizing: border-box;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .mt-toolbar-dd .dd-selected {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mt-toolbar-dd .dd-arrow {
+        flex-shrink: 0;
+        transition: transform .15s ease;
+    }
+
+    .mt-toolbar-dd.dd-open .dd-toggle {
+        border-color: var(--ctrl-accent);
+        box-shadow: 0 0 0 3px var(--ctrl-accent-ring);
+    }
+
+    .mt-toolbar-dd.dd-open .dd-arrow {
+        transform: rotate(180deg);
+    }
+
+    .mt-toolbar-dd .dd-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: max(100%, 180px);
+        background: var(--ctrl-bg);
+        border: 1px solid var(--ctrl-border);
+        border-radius: var(--ctrl-radius-lg);
+        box-shadow: var(--ctrl-shadow-menu);
+        padding: 8px;
+        z-index: 70;
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity .18s cubic-bezier(.4,0,.2,1), transform .18s cubic-bezier(.4,0,.2,1), visibility 0s linear .18s;
+    }
+
+    .mt-toolbar-dd.dd-open .dd-menu {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        visibility: visible;
+        pointer-events: auto;
+        transition: opacity .18s cubic-bezier(.4,0,.2,1), transform .18s cubic-bezier(.4,0,.2,1), visibility 0s linear 0s;
+    }
+
+    .mt-toolbar-dd .dd-search-wrap {
+        margin-bottom: 6px;
+    }
+
+    .mt-toolbar-dd .dd-search {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid var(--ctrl-border);
+        border-radius: var(--ctrl-radius-sm);
+        font-size: 12px;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+        .mt-toolbar-dd .dd-search:focus {
+            border-color: var(--ctrl-accent);
+        }
+
+    .mt-toolbar-dd .dd-options {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+
+    .mt-toolbar-dd .dd-option {
+        padding: 7px 10px;
+        border-radius: var(--ctrl-radius-sm);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ctrl-text-soft);
+        cursor: pointer;
+        user-select: none;
+        transition: background .12s ease;
+    }
+
+        .mt-toolbar-dd .dd-option:hover {
+            background: var(--ctrl-bg-hover);
+        }
+
+        .mt-toolbar-dd .dd-option.dd-option-selected {
+            background: var(--ctrl-accent-soft);
+            color: var(--ctrl-accent-dark);
+            font-weight: 700;
+        }
+
+    .mt-toolbar-dd .dd-no-results {
+        padding: 10px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--ctrl-text-faint);
+        list-style: none;
+    }
+
+.mt-mobile-mode .mt-toolbar-dd {
+    width: var(--mt-toolbar-dd-width, 140px) !important;
+    max-width: var(--mt-toolbar-dd-width, 140px);
+}
+
+/* ---- Toolbar search-input (ShowSearchInput) ----
+   Reuses modern-input-with-search's own mi- / mis- prefixed classes and
+   shape so it looks identical to a standalone <modern-input-with-search>.
+   Sizing here is scoped to .mt-toolbar-mis so it doesn't affect standalone
+   modern-input-with-search instances elsewhere on the page.
+
+   NOTE: modern-input-with-search's own stylesheet stacks the label above
+   the input, sizes its round search button independently of the input
+   height, and sets the outer wrapper to display:block/width:100%. Inside
+   the table toolbar we want this INLINE, on the same row as the main
+   table search box, with the button height locked to match the input.
+   Every selector here is written as the compound ".modern-input-wrapper
+   .mt-toolbar-mis" (both classes together) rather than just
+   ".mt-toolbar-mis", specifically so these rules have higher specificity
+   than the base component's own single-class rules and win regardless of
+   stylesheet load order. */
+.modern-input-wrapper.mt-toolbar-mis {
+    display: inline-flex !important;
+    flex-direction: row;
+    align-items: center;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    float: none !important;
+    gap: 8px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+    .modern-input-wrapper.mt-toolbar-mis .mi-label {
+        display: inline-flex !important;
+        align-items: center;
+        margin: 0 !important;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ctrl-text-soft);
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .modern-input-wrapper.mt-toolbar-mis .mi-required {
+        color: var(--mt-danger-color, #dc2626);
+    }
+
+    .modern-input-wrapper.mt-toolbar-mis .mis-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center;
+        width: auto !important;
+        gap: 8px;
+        border-radius: var(--mt-toolbar-mis-radius, var(--ctrl-radius-md));
+    }
+
+    .modern-input-wrapper.mt-toolbar-mis .mi-input-wrap {
+        position: relative;
+        display: inline-block !important;
+        width: 200px !important;
+        max-width: 100%;
+        flex-shrink: 0;
+    }
+
+    .modern-input-wrapper.mt-toolbar-mis .mi-icon-left {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ctrl-text-faint);
+        pointer-events: none;
+        display: flex;
+    }
+
+    .modern-input-wrapper.mt-toolbar-mis .mi-input {
+        width: 100%;
+        height: 30px !important;
+        padding: 0 30px 0 32px;
+        border: 1.5px solid var(--ctrl-border);
+        border-radius: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        outline: none;
+        box-sizing: border-box;
+        font-family: var(--ctrl-font);
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+        .modern-input-wrapper.mt-toolbar-mis .mi-input:focus {
+            border-color: var(--ctrl-accent);
+            box-shadow: 0 0 0 3px var(--ctrl-accent-ring);
+        }
+
+        .modern-input-wrapper.mt-toolbar-mis .mi-input[readonly] {
+            background: var(--ctrl-bg-soft);
+            color: var(--ctrl-text-soft);
+            cursor: default;
+        }
+
+            .modern-input-wrapper.mt-toolbar-mis .mi-input[readonly]:focus {
+                border-color: var(--ctrl-border);
+                box-shadow: none;
+            }
+
+    .modern-input-wrapper.mt-toolbar-mis .mi-icon-error {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--mt-danger-color, #dc2626);
+        display: flex;
+        cursor: help;
+    }
+
+    .modern-input-wrapper.mt-toolbar-mis .mis-search-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px;
+        min-height: 30px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: var(--app-gradient, var(--ctrl-accent));
+        color: #fff;
+        cursor: pointer;
+        flex-shrink: 0;
+        margin: 0 !important;
+        transition: opacity .15s ease, transform .1s ease;
+    }
+
+        .modern-input-wrapper.mt-toolbar-mis .mis-search-btn svg {
+            width: 55%;
+            height: 55%;
+        }
+
+        .modern-input-wrapper.mt-toolbar-mis .mis-search-btn:hover {
+            opacity: .9;
+        }
+
+        .modern-input-wrapper.mt-toolbar-mis .mis-search-btn:active {
+            transform: translateY(1px);
+        }
+
+        .modern-input-wrapper.mt-toolbar-mis .mis-search-btn:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+.mt-mobile-mode .modern-input-wrapper.mt-toolbar-mis .mi-input-wrap {
+    width: 160px !important;
+}
+
+/* =========================================================
+   MOBILE LAYOUT (.mt-mobile-mode)
+   ---------------------------------------------------------
+   Applied via the .mt-mobile-mode class rather than an @media
+   query, so each table's own MobileBreakpoint (ModernTable.cs)
+   can decide when this layout switches on — CSS media features
+   can't read a custom property, so modern-table.js's
+   setupMobileOptionsSheet() reads data-mobile-breakpoint
+   (default 950, same number this used to hardcode) and toggles
+   this class on the wrapper — and on the sheet/backdrop
+   directly, since those get portaled to be direct children of
+   <body> and would otherwise fall outside any selector scoped
+   under the wrapper. See modern-table.js for the toggle logic.
+
+   The three narrow breakpoints above only shrink individual
+   controls (search-input width, dropdown width, datepicker
+   width) — they still leave every toolbar row as a squeezed
+   copy of the desktop layout: fixed-width "From"/"To" date
+   boxes side by side, a pill-shaped Filters button and a
+   separate Columns button both left-aligned with dead space
+   on the right, and a table that overflows instead of
+   scrolling internally, cutting off later column headers
+   (e.g. "CUSTOMER PHOTO" / "CUSTOME...").
+
+   This block instead re-flows the toolbar into a small set of
+   clearly separated, full-width rows so nothing is clipped and
+   every control is easy to tap:
+     1) Filters + Columns, side by side, sharing the row
+     2) full-width Search
+     3) grid name/icon (if shown)
+     4) date range / dropdowns / search-input group, stacked
+        full-width, one control per line
+   Table scrolling and sizing are also tightened so headers and
+   filter inputs stay usable without horizontal clipping.
+   ========================================================= */
+/* .mt-toolbar is the outer flex row (Searchable || ColumnToggle || ...
+       controls on the left, .mt-col-toggle-wrap as a separate item after).
+       .mt-toolbar-left is itself a nested flex container holding Filters,
+       Search, title, date-range group, and the search-input group.
+
+       On mobile, the Filters button, the Search box, and the Columns
+       toggle are pulled out of the toolbar entirely (hidden here) and
+       replaced by a single hamburger-style "Options" button. Tapping it
+       opens a bottom sheet that modern-table.js has already moved those
+       three elements INTO (see setupMobileOptionsSheet() — it relocates
+       the real DOM nodes, not clones, so every handler already wired to
+       them keeps working). This keeps the toolbar itself down to one
+       compact row instead of stacking several rows of controls. */
+.mt-mobile-mode .mt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 8px;
+}
+
+.mt-mobile-mode .mt-toolbar-left {
+    display: contents;
+}
+
+.mt-mobile-mode .mt-filter-toggle-btn,
+.mt-mobile-mode .mt-search-wrap,
+.mt-mobile-mode .mt-daterange-wrap,
+.mt-mobile-mode .mt-col-toggle-wrap {
+    /* Hidden from the toolbar's own flow on mobile — modern-table.js
+           moves these elements into .mt-mobile-sheet-body, where this rule
+           no longer applies (it's scoped to their toolbar position only
+           via the JS move, not via CSS, so no override is needed here:
+           once moved, they're simply no longer inside .mt-toolbar).
+           NOTE: this is now class-driven (.mt-mobile-mode), not an @media
+           query, so the mobile layout is only guaranteed to apply once
+           modern-table.js has run setupMobileOptionsSheet()'s initial
+           syncToViewport() call — not the instant the CSS is parsed. In
+           practice this is a same-tick, same-paint difference (the class is
+           set synchronously right after the table renders, before the
+           browser's first paint of this content), so there's no visible
+           flash of the desktop layout on a narrow screen in normal use. */
+    display: none;
+}
+
+/* The "Options" hamburger trigger takes the spot the above controls
+       used to occupy — sits first in the toolbar row, sized to match the
+       other pill controls (30px tall, matching .mt-search/.mt-filter-toggle-btn). */
+.mt-mobile-mode .mt-mobile-options-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 34px;
+    border: 1.5px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-md);
+    background: var(--ctrl-bg);
+    color: var(--ctrl-text-soft);
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
+}
+
+    .mt-mobile-mode .mt-mobile-options-btn:hover,
+    .mt-mobile-mode .mt-mobile-options-btn[aria-expanded="true"] {
+        border-color: var(--ctrl-accent);
+        color: var(--ctrl-accent);
+        background: var(--ctrl-accent-soft);
+    }
+
+    .mt-mobile-mode .mt-mobile-options-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--ctrl-accent-ring);
+    }
+
+/* Hidden above the breakpoint — desktop keeps the full toolbar.
+       NOTE: .mt-mobile-sheet-backdrop and .mt-mobile-sheet get
+       .mt-mobile-mode added directly to THEMSELVES (not an ancestor) by
+       modern-table.js, because they're portaled to be direct children of
+       <body> and would otherwise fall outside any selector scoped under
+       the wrapper — so these two use the same-element compound form
+       (.mt-mobile-sheet-backdrop.mt-mobile-mode), not the descendant form
+       used for .mt-mobile-options-btn, which stays inside the wrapper. */
+.mt-mobile-mode .mt-mobile-options-btn,
+.mt-mobile-sheet-backdrop.mt-mobile-mode,
+.mt-mobile-sheet.mt-mobile-mode {
+    display: flex;
+}
+
+/* ---- Backdrop ---- */
+/* z-index is intentionally very high: the sheet/backdrop are portal'd to
+       be direct children of <body> when opened (see modern-table.js), so
+       they need to sit above ANY other fixed/sticky chrome the host page
+       has — most commonly an app shell's sidebar or top nav bar, which
+       often use a deliberately large z-index (seen values up to 99999) to
+       guarantee they always stay on top of ordinary page content. Since
+       this is a modal-style overlay the user explicitly opened, it should
+       always win against that chrome while it's open. */
+.mt-mobile-sheet-backdrop.mt-mobile-mode {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .38);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 2147483000;
+    transition: opacity .22s ease, visibility 0s linear .22s;
+}
+
+    .mt-mobile-sheet-backdrop.mt-mobile-mode.mt-sheet-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition: opacity .22s ease, visibility 0s linear 0s;
+    }
+
+/* ---- Bottom sheet ---- */
+/* A slide-up panel anchored to the bottom of the viewport (not the
+       table), so it works consistently regardless of where the table
+       sits on the page and however tall it currently is. */
+.mt-mobile-sheet.mt-mobile-mode {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2147483001; /* one above the backdrop; see the backdrop's own comment above for why this is so high */
+    max-height: min(78vh, 560px);
+    background: var(--ctrl-bg);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 30px rgba(15, 23, 42, .22);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform .26s cubic-bezier(.32,.72,0,1);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* flatpickr (the calendar popup behind .modern-datepicker's own
+           input+icon markup — see ModernTable.cs's date-range block) opens
+           its calendar as .flatpickr-calendar, appended to <body> as ITS
+           OWN sibling element (not nested inside .mt-mobile-sheet), with
+           its own library-default z-index of 99999. That's far below this
+           sheet's near-maximum z-index above, so a date field opened from
+           inside the sheet had its calendar render BEHIND the sheet panel,
+           making it unusable. Since .flatpickr-calendar isn't a descendant
+           of the sheet, this can't be scoped through the sheet's own
+           .mt-mobile-mode at all — modern-table.js instead raises this
+           unconditionally, all the time, regardless of mobile/desktop mode
+           or any class. That's still safe: .flatpickr-calendar only exists
+           in the DOM while a calendar is actually open, so it can never
+           cover anything by accident when no calendar is showing, on
+           mobile or desktop alike. */
+.flatpickr-calendar {
+    z-index: 2147483002 !important;
+}
+
+.mt-mobile-sheet.mt-mobile-mode.mt-sheet-open {
+    transform: translateY(0);
+}
+
+.mt-mobile-mode .mt-mobile-sheet-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--ctrl-border-light);
+}
+
+.mt-mobile-mode .mt-mobile-sheet-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ctrl-text);
+}
+
+.mt-mobile-mode .mt-mobile-sheet-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ctrl-bg-soft);
+    color: var(--ctrl-text-soft);
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+    .mt-mobile-mode .mt-mobile-sheet-close:hover {
+        background: var(--ctrl-bg-hover);
+        color: var(--ctrl-text);
+    }
+
+.mt-mobile-mode .mt-mobile-sheet-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 14px 16px calc(20px + env(safe-area-inset-bottom, 0));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    -webkit-overflow-scrolling: touch;
+}
+
+    /* Every moved control becomes a full-width, own-line row inside
+           the sheet — no more squeezing Filters/Search/date-range/Columns
+           into a shared toolbar row on a screen this narrow. */
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-filter-toggle-btn,
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-search-wrap,
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap,
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-col-toggle-wrap {
+        display: flex !important; /* override the .mt-toolbar-scoped display:none above — these are no longer in the toolbar once moved */
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* ---- Re-assert this button's own look, defensively ---- */
+    /* The sheet is portal'd to a direct child of <body> when opened (see
+           modern-table.js's setupMobileOptionsSheet), specifically so it can't
+           be trapped inside a transformed/scrolling ancestor. But most host
+           apps ALSO ship some scoped baseline/reset for native form controls —
+           e.g. a rule shaped like ".main-panel button { border: 1px solid #999;
+           border-radius: 0; ... }" to normalize buttons across the app. Such a
+           rule is a compound selector (class + element), which outranks this
+           component's own bare ".mt-filter-toggle-btn" class selector in CSS
+           specificity — so as long as the button is still a DOM descendant of
+           that scoped container, parts of the reset (border WIDTH, radius, etc.)
+           can silently win over this component's intended pill styling, even
+           though modern-table.css loads after the host app's stylesheet. This
+           shows up as a flat, square, unstyled-looking button specifically
+           once it's inside the sheet — never on desktop, where the button
+           never left its original container.
+           Since the sheet is meant to be a fully self-contained overlay UI
+           regardless of the host page's own resets, every visual property is
+           re-asserted here with higher specificity (three classes) and
+           !important, so nothing the host app defines for buttons/inputs in
+           general can leak into this component's controls once they're inside
+           the sheet — independent of whatever DOM container they end up in. */
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-filter-toggle-btn {
+        justify-content: center;
+        border-width: 1.5px !important;
+        border-style: solid !important;
+        border-color: var(--ctrl-border) !important;
+        border-radius: 999px !important;
+        background: var(--ctrl-bg) !important;
+        color: var(--ctrl-text-soft) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .05) !important;
+        padding: 0 14px 0 12px !important;
+        height: 32px !important;
+        font-size: 12.5px !important;
+        font-weight: 600 !important;
+        font-family: var(--ctrl-font) !important;
+    }
+
+        .mt-mobile-mode .mt-mobile-sheet-body > .mt-filter-toggle-btn:hover {
+            border-color: var(--ctrl-accent) !important;
+            color: var(--ctrl-accent) !important;
+        }
+
+.mt-mobile-mode .mt-mobile-sheet.mt-sheet-open .mt-mobile-sheet-body > .mt-filter-toggle-btn.mt-filter-active {
+    border-color: var(--ctrl-accent) !important;
+    color: var(--ctrl-accent-dark, var(--ctrl-accent)) !important;
+    background: var(--ctrl-accent-soft) !important;
+}
+
+.mt-mobile-mode .mt-mobile-sheet-body > .mt-search-wrap .mt-search {
+    width: 100%;
+}
+
+/* Date range / dropdown / search-input group, stacked full width
+           inside the sheet — one control per line instead of squeezed side
+           by side, since there's no room for that on a screen this narrow. */
+.mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+    /* Each From/To row: label sits directly beside its input (not
+               pinned to the far left with the input pushed away to the far
+               right) — a short fixed-width label column keeps the two
+               visually grouped as one control, the same way a normal form
+               row reads, and the input takes the rest of the row's width. */
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap > .mt-daterange-field {
+        width: 100%;
+        gap: 10px;
+    }
+
+        .mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap > .mt-daterange-field > .mt-daterange-label {
+            flex: 0 0 34px;
+        }
+
+        .mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap > .mt-daterange-field .datepicker-wrapper {
+            flex: 1 1 auto;
+            width: auto;
+            max-width: none;
+        }
+
+    /* The round icon-only search button reads as a stray, floating
+               circle when it's left to wrap onto its own line at its tiny
+               desktop toolbar size (see the bug screenshot this fixes) — it
+               visually detaches from the From/To fields above it and leaves
+               a lopsided gap before the next control. Turn it into a full
+               width, labelled action button instead, so it reads as "the
+               thing you press to apply the date range" rather than an
+               unexplained dot sitting in empty space. */
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap > .mt-daterange-search-btn {
+        width: 100% !important;
+        height: 38px !important;
+        border-radius: var(--ctrl-radius-md, 10px) !important;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: var(--ctrl-font);
+    }
+
+        .mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap > .mt-daterange-search-btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .mt-mobile-mode .mt-mobile-sheet-body > .mt-daterange-wrap > .mt-daterange-search-btn::after {
+            content: "Search";
+        }
+
+.mt-mobile-mode .mt-mobile-sheet-body > .mt-col-toggle-wrap {
+    position: relative;
+    /* This wrap is itself made display:flex above (to override the
+               toolbar's display:none once moved); without an explicit
+               column direction its two children — the toggle button and
+               the popup panel — would sit side by side as flex items
+               instead of the button sitting above its dropdown panel. */
+    flex-direction: column;
+    align-items: stretch;
+}
+
+    /* The column-chooser popup normally anchors absolutely to its
+               toggle button with its own fixed max-height/scroll/shadow
+               (built for floating over page content); inside the sheet we
+               want it to drop down inline as a plain full-width block
+               instead — there's no room for a second floating layer inside
+               an already-floating sheet, and no need to cap its height
+               separately since .mt-mobile-sheet-body already scrolls. */
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-col-toggle-wrap .mt-col-toggle-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-col-toggle-wrap .mt-col-panel {
+        position: static !important;
+        margin-top: 8px;
+        width: 100%;
+        max-width: 100%;
+        max-height: none;
+        min-height: 0;
+        box-shadow: none;
+        border-style: solid;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: none;
+        transition: none;
+    }
+
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-col-toggle-wrap .mt-col-list {
+        max-height: 240px; /* its own internal scroll if the column list is long, independent of the sheet's outer scroll */
+    }
+
+    .mt-mobile-mode .mt-mobile-sheet-body > .mt-col-toggle-wrap:not(.open) .mt-col-panel {
+        display: none;
+    }
+
+/* Row 3: grid name/icon, own line, if shown — stays in the toolbar
+       itself (not moved into the sheet), right after the hamburger button. */
+.mt-mobile-mode .mt-title-wrap {
+    order: 4;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* date range / dropdown / search-input group — like Filters/Search/
+       Columns, this moves into the mobile "Options" sheet on a screen this
+       narrow (modern-table.js treats .mt-daterange-wrap as a movable
+       element) rather than staying in the toolbar, so From/To date fields,
+       toolbar dropdowns and their search button don't squeeze the toolbar
+       or force extra stacked rows above the table. Layout inside the sheet
+       (stacked, full width, one control per line) is defined further below
+       under the .mt-mobile-sheet-body rules. */
+
+.mt-mobile-mode .mt-daterange-field {
+    width: 100%;
+    justify-content: space-between;
+}
+
+    .mt-mobile-mode .mt-daterange-field .datepicker-wrapper {
+        width: 100%;
+        max-width: 220px;
+    }
+
+.mt-mobile-mode .mt-toolbar-dd {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.mt-mobile-mode .mt-daterange-search-btn {
+    align-self: flex-end;
+}
+
+.mt-mobile-mode .modern-input-wrapper.mt-toolbar-mis {
+    width: 100% !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+    .mt-mobile-mode .modern-input-wrapper.mt-toolbar-mis .mis-row {
+        width: 100% !important;
+    }
+
+    .mt-mobile-mode .modern-input-wrapper.mt-toolbar-mis .mi-input-wrap {
+        width: 100% !important;
+        flex: 1 1 auto;
+    }
+
+/* ---- Table region ---- */
+/* Desktop uses table-layout:fixed with width:100%, which force-splits
+       the available width evenly across every column regardless of its
+       content — on a narrow screen that's what squeezes multi-word
+       headers like "CUSTOMER PHOTO" until they visually collide with the
+       next column's text. Switching to table-layout:auto with a sensible
+       min-width per cell lets columns take the width their content needs,
+       and .mt-scroll (already overflow-x:auto) becomes the thing that
+       scrolls horizontally instead of text getting clipped in place. */
+.mt-mobile-mode .mt-table {
+    table-layout: auto;
+    width: auto;
+    min-width: 100%;
+}
+
+.mt-mobile-mode .mt-scroll {
+    -webkit-overflow-scrolling: touch;
+}
+
+.mt-mobile-mode .mt-thead th,
+.mt-mobile-mode .mt-tbody td {
+    padding: 0 10px;
+    min-width: 96px;
+    white-space: nowrap;
+}
+
+/* Headers stay on a single line, same as body cells — wrapping a
+       multi-word header like "CUSTOMER PHOTO" onto two lines looks
+       cramped and uneven next to single-word headers. Each column simply
+       takes the width its (unwrapped) header or content needs, and
+       .mt-scroll (overflow-x:auto) handles anything wider than the
+       screen via horizontal scroll instead of wrapping text. */
+.mt-mobile-mode .mt-thead th {
+    white-space: nowrap;
+}
+
+.mt-mobile-mode .mt-filter-row th {
+    padding: 6px 8px;
+}
+
+.mt-mobile-mode .mt-filter-input {
+    font-size: 13px; /* >=13px avoids iOS Safari auto-zoom on focus */
+}
+
+/* ---- Footer / pagination ---- */
+.mt-mobile-mode .mt-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+}
+
+.mt-mobile-mode .mt-info {
+    text-align: center;
+}
+
+.mt-mobile-mode .mt-pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ---- Column chooser popup ---- */
+/* Anchor to the left instead of the right on narrow screens so it
+       doesn't overflow past the viewport edge, and cap its width. */
+.mt-mobile-mode .mt-col-panel {
+    left: 0;
+    right: auto;
+    width: min(260px, calc(100vw - 24px));
+    transform-origin: top left;
+}

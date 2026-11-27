@@ -1,0 +1,96 @@
+@model DocumentDto
+@{
+    Layout = "_EditorLayout";   // full-window editor frame from Vaikunth.UI
+    ViewData["Title"] = Model.Title;
+}
+@section Styles { <link rel="stylesheet" href="~/_content/Vaikunth.HrishikeshaWorkbook/css/workbook.css" asp-append-version="true" /> }
+
+<vk-app-bar app="workbook" doc-title="@Model.Title" user-name="@User.DisplayName()" avatar-tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
+
+<vk-ribbon>
+    <vk-ribbon-tab title="Home" active="true">
+        <vk-ribbon-group label="Clipboard">
+            <vk-ribbon-btn cmd="paste" icon="clipboard" text="Paste" size="large" />
+            <vk-ribbon-btn cmd="cut" icon="scissors" tooltip="Cut" />
+            <vk-ribbon-btn cmd="copy" icon="copy" tooltip="Copy" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Font">
+            <vk-ribbon-btn cmd="bold" icon="bold" tooltip="Bold (Ctrl+B)" toggle="true" />
+            <vk-ribbon-btn cmd="italic" icon="italic" tooltip="Italic (Ctrl+I)" toggle="true" />
+            <vk-ribbon-color cmd="fill" icon="paint-brush" value="#D1FAE5" tooltip="Fill colour" />
+            <vk-ribbon-color cmd="color" icon="font" value="#C24A1C" tooltip="Font colour" />
+            <vk-ribbon-btn cmd="clearFormat" icon="eraser" tooltip="Clear formats" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Alignment">
+            <vk-ribbon-btn cmd="align" arg="left" icon="align-left" tooltip="Align left" />
+            <vk-ribbon-btn cmd="align" arg="center" icon="align-center" tooltip="Centre" />
+            <vk-ribbon-btn cmd="align" arg="right" icon="align-right" tooltip="Align right" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Number">
+            <vk-ribbon-select cmd="format" options="general|General,number|Number,currency|Currency ₹,percent|Percent" width="124" tooltip="Number format" />
+            <vk-ribbon-btn cmd="format" arg="currency" icon="inr" tooltip="Currency" />
+            <vk-ribbon-btn cmd="format" arg="percent" icon="percent" tooltip="Percent" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Cells">
+            <vk-ribbon-btn cmd="insertRow" icon="plus-square-o" text="Insert row" />
+            <vk-ribbon-btn cmd="deleteRow" icon="minus-square-o" text="Delete row" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Editing">
+            <vk-ribbon-btn cmd="autoSum" icon="calculator" text="AutoSum" size="large" />
+            <vk-ribbon-btn cmd="sortAsc" icon="sort-alpha-asc" tooltip="Sort A to Z" />
+            <vk-ribbon-btn cmd="sortDesc" icon="sort-alpha-desc" tooltip="Sort Z to A" />
+            <vk-ribbon-btn cmd="clear" icon="trash-o" tooltip="Clear contents" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Insert">
+        <vk-ribbon-group label="Charts">
+            <vk-ribbon-btn cmd="chart" arg="bar" icon="bar-chart" text="Column chart" size="large" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Sheets">
+            <vk-ribbon-btn cmd="addSheet" icon="plus" text="New sheet" size="large" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Formulas">
+        <vk-ribbon-group label="Function library">
+            <vk-ribbon-btn cmd="fn" arg="SUM" icon="plus" text="SUM" />
+            <vk-ribbon-btn cmd="fn" arg="AVERAGE" icon="line-chart" text="AVERAGE" />
+            <vk-ribbon-btn cmd="fn" arg="MIN" icon="arrow-down" text="MIN" />
+            <vk-ribbon-btn cmd="fn" arg="MAX" icon="arrow-up" text="MAX" />
+            <vk-ribbon-btn cmd="fn" arg="COUNT" icon="hashtag" text="COUNT" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="View">
+        <vk-ribbon-group label="Show">
+            <vk-ribbon-btn cmd="toggleGrid" icon="th" text="Gridlines" toggle="true" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+</vk-ribbon>
+
+<div class="wb-formula">
+    <input class="wb-name" id="nameBox" value="A1" aria-label="Cell address" />
+    <span class="wb-fx"><i>fx</i></span>
+    <input class="wb-input" id="formulaBar" placeholder="Type a value or a formula like =SUM(B2:E2)" spellcheck="false" />
+</div>
+
+<div class="vk-work wb-work" id="work">
+    <div class="wb-scroll" id="scroll">
+        <vk-sheet-grid id="grid" rows="40" cols="14" />
+        <div class="wb-chart" id="chart" hidden>
+            <div class="wb-chart-head"><b id="chartTitle">Chart</b><button type="button" class="vk-rb vk-rb-icon" data-cmd="closeChart" title="Remove chart"><i class="fa fa-times"></i></button></div>
+            <div class="wb-chart-body" id="chartBody"></div>
+        </div>
+    </div>
+</div>
+
+<div class="wb-tabs" id="sheetTabs"></div>
+
+<vk-status-bar>
+    <span id="statReady"><i class="fa fa-check-circle" style="color:#115C45"></i> Ready</span>
+    <span id="statSel"></span>
+</vk-status-bar>
+
+@section Scripts {
+    <script id="docData" type="application/json">@Html.Raw(Model.Content.Replace("</", "<\\/"))</script>
+    <script>VK.docId = "@Model.DocumentId";</script>
+    <script src="~/_content/Vaikunth.HrishikeshaWorkbook/js/workbook.js" asp-append-version="true"></script>
+}

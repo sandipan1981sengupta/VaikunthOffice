@@ -1,0 +1,122 @@
+/* =========================================================
+   CHANGES — modern-datepicker-with-label.css
+   1. .mdpwl-label: font-size 14px -> 16px, font-weight 700 -> 600
+   2. .mdpwl-input: height 48px -> 40px (now overridable via Height)
+   3. NEW: Width  -> --mdpwl-width  on .mdpwl-outer (default 100%)
+   4. NEW: Height -> --mdpwl-height on .mdpwl-input (default 40px)
+   5. NEW: IsLeftLabel -> .mdpwl-label-left (label beside the field)
+   ========================================================= */
+
+.mdpwl-outer {
+    width: var(--mdpwl-width, 100%); /* NEW — configurable via Width */
+    max-width: 100%;
+    font-family: var(--ctrl-font);
+}
+
+.mdpwl-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ctrl-accent-dark);
+}
+
+.mdpwl-required {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.mdpwl-field {
+    position: relative;
+    width: 100%;
+}
+
+/* ---- NEW: IsLeftLabel="true" — label and field on one row ---- */
+.mdpwl-outer.mdpwl-label-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+    .mdpwl-outer.mdpwl-label-left .mdpwl-label {
+        margin-bottom: 0;
+        flex: 0 0 var(--mdpwl-label-width, auto); /* fixed width if LabelWidth is set */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mdpwl-outer.mdpwl-label-left .mdpwl-field {
+        flex: 1 1 auto;
+        min-width: 0; /* lets the field shrink instead of overflowing */
+    }
+
+.mdpwl-input {
+    width: 100%;
+    height: var(--mdpwl-height, 40px); /* NEW — configurable via Height */
+    padding: 0 72px 0 16px;
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--mdpwl-radius, 0px);
+    background: var(--ctrl-bg);
+    color: var(--ctrl-text);
+    font-size: 15px;
+    font-family: var(--ctrl-font);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+    .mdpwl-input:focus {
+        border-color: var(--ctrl-accent);
+        box-shadow: 0 0 0 4px var(--ctrl-accent-ring);
+    }
+
+    .mdpwl-input:read-only {
+        cursor: pointer;
+        background: var(--ctrl-bg-soft, var(--ctrl-bg));
+    }
+
+        .mdpwl-input:read-only:focus {
+            cursor: pointer;
+        }
+
+.mdpwl-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ctrl-accent);
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 5;
+    transition: color .2s ease, transform .2s ease;
+}
+
+    .mdpwl-icon:hover {
+        color: var(--ctrl-accent-dark);
+        transform: translateY(-50%) scale(1.08);
+    }
+
+.mdpwl-icon-error {
+    position: absolute;
+    right: 42px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    z-index: 5;
+}
+
+.mdpwl-field.mdpwl-disabled .mdpwl-input {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.mdpwl-field.mdpwl-disabled .mdpwl-icon {
+    color: #d1d5db;
+    pointer-events: none;
+}

@@ -1,0 +1,106 @@
+@inject CurrentApp Current
+@* The suite shell around the launcher: top bar with the Vaikunth Office name, search and the person's menu. *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <partial name="_Head" />
+    <title>@(ViewData["Title"] is string t ? $"{t} · Vaikunth Office" : "Vaikunth Office")</title>
+    <meta name="theme-color" content="#F4F5FB" />
+</head>
+<body class="vk-shell-body" data-app="@Current.Info.Key">
+    <div class="vk-backdrop soft" aria-hidden="true">
+        <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+    </div>
+    <header class="vk-topbar">
+        <a class="vk-brand" href="/">
+            <vk-app-icon app="suite" size="38" />
+            <span class="vk-brand-text"><b>VAIKUNTH</b> OFFICE</span>
+        </a>
+        @if (User.IsSuperAdmin())
+        {
+            <nav class="vk-topnav"><a class="on" href="/admin"><i class="fa fa-building-o"></i> Clients</a></nav>
+        }
+        else if (User.TenantName() is { Length: > 0 } company)
+        {
+            <span class="vk-tenant-pill" title="Your company"><i class="fa fa-building-o"></i> @company</span>
+            @if (User.IsInRole(AppRoles.TenantAdmin))
+            {
+                var path = Context.Request.Path.Value ?? "/";
+                <nav class="vk-topnav">
+                    <a class="@(path.StartsWith("/team") ? "" : "on")" href="/"><i class="fa fa-th-large"></i> Apps</a>
+                    <a class="@(path.StartsWith("/team") ? "on" : "")" href="/team"><i class="fa fa-users"></i> People</a>
+                </nav>
+            }
+        }
+        <label class="vk-top-search"><i class="fa fa-search"></i><input type="search" placeholder="Search files, people and apps" /></label>
+        <div class="vk-top-right">
+            <button type="button" class="vk-icon-btn" title="About Vaikunth Office" data-open-dialog="aboutDialog"><i class="fa fa-info-circle"></i></button>
+            <button type="button" class="vk-icon-btn" title="Notifications"><i class="fa fa-bell-o"></i><span class="vk-dot"></span></button>
+            <div class="vk-menu">
+                <button type="button" class="vk-avatar-btn" data-toggle-menu>
+                    <vk-avatar name="@User.DisplayName()" tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
+                    <span class="vk-avatar-name">@User.DisplayName()</span>
+                    <i class="fa fa-angle-down"></i>
+                </button>
+                <div class="vk-menu-pop" hidden>
+                    <div class="vk-menu-who"><b>@User.DisplayName()</b><small>@User.Identity?.Name</small><small>@(User.IsSuperAdmin() ? "Super admin" : User.TenantName())</small></div>
+                    @if (User.IsSuperAdmin()) { <a class="vk-menu-link" href="/admin"><i class="fa fa-building-o"></i> Clients</a> }
+                    @if (User.IsInRole(AppRoles.TenantAdmin)) { <a class="vk-menu-link" href="/team"><i class="fa fa-users"></i> People</a> }
+                    <button type="button" data-open-dialog="accountDialog"><i class="fa fa-user-circle-o"></i> My account</button>
+                    <button type="button" data-open-dialog="photoDialog"><i class="fa fa-camera"></i> Profile photo</button>
+                    <button type="button" data-open-dialog="aboutDialog"><i class="fa fa-info-circle"></i> About Vaikunth Office</button>
+                    <form method="post" action="/account/logout">@Html.AntiForgeryToken()<button type="submit"><i class="fa fa-sign-out"></i> Sign out</button></form>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="vk-shell-main">
+        @RenderBody()
+    </main>
+
+    <partial name="_AboutDialog" />
+
+    @* Profile photo: saved in the database with the person (Vaikunth_Users.Photo), shrunk to 256 × 256 in the browser first. *@
+    @{ var photoError = TempData["PhotoError"] as string; var photoDone = TempData["PhotoDone"] as string; }
+    <vk-dialog id="photoDialog" title="Profile photo" icon="camera" ok-text="Save photo" action="/account/photo" enctype="multipart/form-data" width="440px">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+        <div class="vk-photo-pick">
+            <span class="vk-photo-preview" id="photoPreview">
+                @if (User.PhotoUrl() is { } url) { <img src="@url" alt="" /> } else { <vk-avatar name="@User.DisplayName()" tone="@User.AvatarTone()" size="112" /> }
+            </span>
+            <label class="vk-btn vk-btn-light vk-photo-choose"><i class="fa fa-upload"></i> Choose a picture
+                <input type="file" name="photo" id="photoFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+            </label>
+            <p class="vk-dialog-note">PNG, JPEG or WebP. It is cropped to a square and made small before it is saved.</p>
+            @if (photoError is not null) { <p class="vk-form-error" data-open-on-load>@photoError</p> }
+            @if (User.PhotoUrl() is not null)
+            {
+                <button type="submit" class="vk-link-btn" formaction="/account/photo/remove" formnovalidate><i class="fa fa-trash-o"></i> Remove my photo</button>
+            }
+        </div>
+    </vk-dialog>
+    @* My account: change your own name, email and password (the current password is always needed). *@
+    @{ var accountError = TempData["AccountError"] as string; var accountDone = TempData["AccountDone"] as string; }
+    <vk-dialog id="accountDialog" title="My account" icon="user-circle-o" ok-text="Save changes" action="/account/me" width="480px">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+        @if (accountError is not null) { <p class="vk-form-error" data-open-on-load>@accountError</p> }
+        <vk-input id="acctName" name="displayName" label="Your name" icon="user-o" mandatory="true" value="@User.DisplayName()" />
+        <vk-input id="acctEmail" name="email" label="Email (you sign in with this)" icon="envelope-o" mandatory="true" input-type="email" value="@User.Identity?.Name" autocomplete="username" />
+        <div class="vk-account-pw">
+            <vk-input id="acctNewPassword" name="newPassword" label="New password" is-password="true" placeholder="Optional" autocomplete="new-password" />
+            <vk-input id="acctConfirmPassword" name="confirmPassword" label="New password again" is-password="true" autocomplete="new-password" />
+        </div>
+        <vk-input id="acctCurrentPassword" name="currentPassword" label="Current password" is-password="true" mandatory="true" placeholder="Needed to save any change" autocomplete="current-password" />
+        <p class="vk-dialog-note"><i class="fa fa-shield"></i> @(User.IsSuperAdmin() ? "You are the super admin. Use an email you check: password reset links go there." : "Password reset links go to this email.")</p>
+    </vk-dialog>
+    <div class="vk-toast" id="toast" hidden></div>
+    @if (accountDone is not null) { <script>document.addEventListener("DOMContentLoaded", function () { VK.toast(@Json.Serialize(accountDone)); });</script> }
+    @if (photoDone is not null) { <script>document.addEventListener("DOMContentLoaded", function () { VK.toast(@Json.Serialize(photoDone)); });</script> }
+
+    <script src="~/_content/Vaikunth.UI/js/vaikunth.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

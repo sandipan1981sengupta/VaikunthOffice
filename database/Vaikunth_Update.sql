@@ -12,13 +12,14 @@
    Then set ConnectionStrings:Default in each app's appsettings.json and open /setup once
    to create the super admin.
 
-   All three apps (Akshara Pages, Hrishikesha Workbook, Vishwaroopa Slides) share this one database.
+   All five apps (Akshara Pages, Vishwaroopa Slides, Hrishikesha Workbook, Shashvata Reader, Dhruva Planner)
+   share this one database.
    Every client company is a row in Vaikunth_Tenants; everything a client owns carries its TenantId.
 
    WHAT IS IN THE DATABASE AND WHAT IS ON THE SERVER
    -------------------------------------------------
    Database: clients, plans, users, passwords (hashed), profile photos, password links, and the LIST of files.
-   Server:   the content of every Word, Excel and PowerPoint file, as a file in the folder set in each app's
+   Server:   the content of every document, deck, workbook, PDF and project, as a file in the folder set in the site's
              appsettings.json  "Storage": { "RootPath": "D:\\VaikunthFiles" }  (empty = App_Data\VaikunthFiles
              in the folder where the app is hosted).
 
@@ -27,6 +28,8 @@
        {client id}/Pages/{file id}.json       Akshara Pages (Word): the page (its HTML) and page size
        {client id}/Workbook/{file id}.json    Hrishikesha Workbook (Excel): sheets → cells (value or =formula + format)
        {client id}/Slides/{file id}.json      Vishwaroopa Slides (PowerPoint): theme, slides → boxes, pictures, notes
+       {client id}/Reader/{file id}.json      Shashvata Reader (PDF): the PDF itself (base64), notes, bookmarks, last page
+       {client id}/Planner/{file id}.json     Dhruva Planner (projects): dates, board columns, tasks (owner, dates, progress)
    The exact JSON shapes are the classes in Vaikunth.DtoLibrary/DocumentDtos.cs.
    SizeBytes counts towards the client's storage quota.
 
@@ -77,15 +80,15 @@ CREATE TABLE dbo.Vaikunth_Plans
     Name            NVARCHAR(50)     NOT NULL CONSTRAINT UX_Vaikunth_Plans_Name UNIQUE,
     MaxUsers        INT              NOT NULL,
     StorageQuotaMb  BIGINT           NOT NULL,
-    AppsEnabled     TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Plans_Apps DEFAULT (7),   -- 1 Pages + 2 Workbook + 4 Slides
+    AppsEnabled     TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Plans_Apps DEFAULT (31),  -- 1 Pages + 2 Workbook + 4 Slides + 8 Reader + 16 Planner
     PricePerUser    DECIMAL(10, 2)   NOT NULL CONSTRAINT DF_Vaikunth_Plans_Price DEFAULT (0)
 );
 GO
 IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_Plans)
     INSERT dbo.Vaikunth_Plans (Name, MaxUsers, StorageQuotaMb, AppsEnabled, PricePerUser) VALUES
-        (N'Starter', 10, 1024, 7, 0),
-        (N'Business', 50, 10240, 7, 149),
-        (N'Enterprise', 500, 102400, 7, 299);
+        (N'Starter', 10, 1024, 31, 0),
+        (N'Business', 50, 10240, 31, 149),
+        (N'Enterprise', 500, 102400, 31, 299);
 GO
 
 /* ---------- Tenants: one row per client company ---------- */
@@ -96,7 +99,7 @@ CREATE TABLE dbo.Vaikunth_Tenants
     Name                    NVARCHAR(120)    NOT NULL,
     Slug                    NVARCHAR(40)     NOT NULL CONSTRAINT UX_Vaikunth_Tenants_Slug UNIQUE,
     PlanId                  INT              NOT NULL CONSTRAINT FK_Vaikunth_Tenants_Plans REFERENCES dbo.Vaikunth_Plans(PlanId),
-    AppsEnabled             TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Apps DEFAULT (7),
+    AppsEnabled             TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Apps DEFAULT (31),
     IsActive                BIT              NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Active DEFAULT (1),
     MaxUsersOverride        INT              NULL,
     StorageQuotaMbOverride  BIGINT           NULL,
@@ -123,7 +126,10 @@ CREATE TABLE dbo.Vaikunth_Users
     PasswordSetUtc  DATETIME2(3)     NULL,
     Photo           VARBINARY(MAX)   NULL,              -- profile picture (PNG / JPEG / WebP, at most 2 MB)
     PhotoType       NVARCHAR(50)     NULL,
-    PhotoUpdatedUtc DATETIME2(3)     NULL
+    PhotoUpdatedUtc DATETIME2(3)     NULL,
+    Department      NVARCHAR(80)     NULL,              -- e.g. Sales, Finance (set by the client admin)
+    JobTitle        NVARCHAR(80)     NULL,              -- e.g. Accountant. Role above is what they may do in Vaikunth Office
+    JoiningDate     DATE             NULL               -- the day they joined the company
 );
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Vaikunth_Users_Email')
@@ -149,13 +155,13 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Vaikunth_PasswordLink
     CREATE INDEX IX_Vaikunth_PasswordLinks_User ON dbo.Vaikunth_PasswordLinks(UserId, CreatedUtc DESC);
 GO
 
-/* ---------- Documents: the LIST of files of all three apps. The content is a file on the server (see the top). ---------- */
+/* ---------- Documents: the LIST of files of all five apps. The content is a file on the server (see the top). ---------- */
 IF OBJECT_ID(N'dbo.Vaikunth_Documents', N'U') IS NULL
 CREATE TABLE dbo.Vaikunth_Documents
 (
     DocumentId      UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Vaikunth_Documents PRIMARY KEY,
     TenantId        UNIQUEIDENTIFIER NOT NULL CONSTRAINT FK_Vaikunth_Documents_Tenants REFERENCES dbo.Vaikunth_Tenants(TenantId),
-    AppKind         TINYINT          NOT NULL,          -- 1 Pages (Word) · 2 Workbook (Excel) · 3 Slides (PowerPoint)
+    AppKind         TINYINT          NOT NULL,          -- 1 Pages (Word) · 2 Workbook (Excel) · 3 Slides (PowerPoint) · 4 Reader (PDF) · 5 Planner (projects)
     FileName        NVARCHAR(200)    NOT NULL,          -- the name people see, e.g. "Quarterly review"
     StoragePath     NVARCHAR(400)    NOT NULL CONSTRAINT DF_Vaikunth_Documents_Path DEFAULT (N''),  -- relative to Storage:RootPath
     SizeBytes       BIGINT           NOT NULL CONSTRAINT DF_Vaikunth_Documents_Size DEFAULT (0),
@@ -166,8 +172,30 @@ CREATE TABLE dbo.Vaikunth_Documents
     IsDeleted       BIT              NOT NULL CONSTRAINT DF_Vaikunth_Documents_Deleted DEFAULT (0),
     DeletedBy       UNIQUEIDENTIFIER NULL,
     DeletedUtc      DATETIME2(3)     NULL,
-    CONSTRAINT CK_Vaikunth_Documents_AppKind CHECK (AppKind IN (1, 2, 3))
+    CONSTRAINT CK_Vaikunth_Documents_AppKind CHECK (AppKind IN (1, 2, 3, 4, 5))
 );
+GO
+
+/* Upgrade to five apps (Shashvata Reader = 4 / flag 8, Dhruva Planner = 5 / flag 16). Runs once: while the
+   AppKind check still allows only 1-3, plans and clients that had all three apps get the two new ones too,
+   and the defaults become 31. A plan or client that had only some apps keeps exactly those. */
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Vaikunth_Documents_AppKind'
+           AND parent_object_id = OBJECT_ID(N'dbo.Vaikunth_Documents') AND definition NOT LIKE N'%4%')
+BEGIN
+    BEGIN TRAN;
+    UPDATE dbo.Vaikunth_Plans   SET AppsEnabled = 31 WHERE AppsEnabled = 7;
+    UPDATE dbo.Vaikunth_Tenants SET AppsEnabled = 31 WHERE AppsEnabled = 7;
+    ALTER TABLE dbo.Vaikunth_Documents DROP CONSTRAINT CK_Vaikunth_Documents_AppKind;
+    ALTER TABLE dbo.Vaikunth_Documents ADD CONSTRAINT CK_Vaikunth_Documents_AppKind CHECK (AppKind IN (1, 2, 3, 4, 5));
+    IF EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_Vaikunth_Plans_Apps')
+        ALTER TABLE dbo.Vaikunth_Plans DROP CONSTRAINT DF_Vaikunth_Plans_Apps;
+    ALTER TABLE dbo.Vaikunth_Plans ADD CONSTRAINT DF_Vaikunth_Plans_Apps DEFAULT (31) FOR AppsEnabled;
+    IF EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_Vaikunth_Tenants_Apps')
+        ALTER TABLE dbo.Vaikunth_Tenants DROP CONSTRAINT DF_Vaikunth_Tenants_Apps;
+    ALTER TABLE dbo.Vaikunth_Tenants ADD CONSTRAINT DF_Vaikunth_Tenants_Apps DEFAULT (31) FOR AppsEnabled;
+    COMMIT;
+    PRINT N'Vaikunth Office: Shashvata Reader and Dhruva Planner added to plans and clients that had every app.';
+END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Vaikunth_Documents') AND name LIKE N'IX[_]%[_]Documents[_]Owner')
     CREATE INDEX IX_Vaikunth_Documents_Owner ON dbo.Vaikunth_Documents(TenantId, CreatedBy, UpdatedUtc DESC) WHERE IsDeleted = 0;
@@ -206,6 +234,9 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Vaikunth_
 /* Profile photos. */
 IF COL_LENGTH(N'dbo.Vaikunth_Users', N'Photo') IS NULL
     ALTER TABLE dbo.Vaikunth_Users ADD Photo VARBINARY(MAX) NULL, PhotoType NVARCHAR(50) NULL, PhotoUpdatedUtc DATETIME2(3) NULL;
+/* People details the client admin fills in: department, job title, joining date. */
+IF COL_LENGTH(N'dbo.Vaikunth_Users', N'Department') IS NULL
+    ALTER TABLE dbo.Vaikunth_Users ADD Department NVARCHAR(80) NULL, JobTitle NVARCHAR(80) NULL, JoiningDate DATE NULL;
 /* Files on the server: where each file is, and who deleted it. */
 IF COL_LENGTH(N'dbo.Vaikunth_Documents', N'StoragePath') IS NULL
     ALTER TABLE dbo.Vaikunth_Documents ADD StoragePath NVARCHAR(400) NOT NULL CONSTRAINT DF_Vaikunth_Documents_Path DEFAULT (N'');
@@ -230,6 +261,60 @@ BEGIN
 END
 IF OBJECT_ID(N'dbo.Vaikunth_DocumentsToMove', N'U') IS NOT NULL
     EXEC sys.sp_executesql N'IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_DocumentsToMove) DROP TABLE dbo.Vaikunth_DocumentsToMove;';
+GO
+
+/* ============================ 3b. billing ============================ */
+/* Money: each client pays licenses × the plan's price per user, every month. A plan priced 0 is free (never billed).
+   BillingFrom   = the first month the client pays for (first day of that month).
+   BillingHoldUntil = the super admin let a client in again until this day, even with unpaid months.
+   BillingBlocked = set by the site when a payment is more than GraceDays late (sign-in stops, like a pause). */
+IF COL_LENGTH(N'dbo.Vaikunth_Tenants', N'BillingFrom') IS NULL
+BEGIN
+    ALTER TABLE dbo.Vaikunth_Tenants ADD BillingFrom DATE NULL, BillingHoldUntil DATE NULL,
+        BillingBlocked BIT NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Blocked DEFAULT (0);
+    -- clients that exist before billing was added start paying from next month, so nobody is late on day one
+    EXEC sys.sp_executesql N'UPDATE dbo.Vaikunth_Tenants SET BillingFrom = DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1)) WHERE BillingFrom IS NULL;';
+    PRINT N'Vaikunth Office: billing added. Existing clients pay from next month.';
+END
+GO
+
+/* The super admin's billing rules: one row. DueDay = payment due on this day of every month (1 to 28).
+   GraceDays = how many days after the due day an unpaid client keeps working (with a warning) before it is blocked. */
+IF OBJECT_ID(N'dbo.Vaikunth_BillingSettings', N'U') IS NULL
+CREATE TABLE dbo.Vaikunth_BillingSettings
+(
+    Id          TINYINT      NOT NULL CONSTRAINT PK_Vaikunth_BillingSettings PRIMARY KEY CONSTRAINT CK_Vaikunth_BillingSettings_One CHECK (Id = 1),
+    DueDay      TINYINT      NOT NULL CONSTRAINT DF_Vaikunth_BillingSettings_Due DEFAULT (10) CONSTRAINT CK_Vaikunth_BillingSettings_Due CHECK (DueDay BETWEEN 1 AND 28),
+    GraceDays   INT          NOT NULL CONSTRAINT DF_Vaikunth_BillingSettings_Grace DEFAULT (30) CONSTRAINT CK_Vaikunth_BillingSettings_Grace CHECK (GraceDays BETWEEN 0 AND 365),
+    AutoBlock   BIT          NOT NULL CONSTRAINT DF_Vaikunth_BillingSettings_Block DEFAULT (1),
+    UpdatedUtc  DATETIME2(3) NOT NULL CONSTRAINT DF_Vaikunth_BillingSettings_Updated DEFAULT (SYSUTCDATETIME())
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_BillingSettings)
+    INSERT dbo.Vaikunth_BillingSettings (Id, DueDay, GraceDays, AutoBlock) VALUES (1, 10, 30, 1);
+GO
+
+/* Money received: one row per payment. Period = the month it pays for (first day of the month).
+   BillAmount = what that month cost when the payment was recorded (licenses × price), so a later price change
+   doesn't turn an old, fully paid month into a part-paid one. */
+IF OBJECT_ID(N'dbo.Vaikunth_Payments', N'U') IS NULL
+CREATE TABLE dbo.Vaikunth_Payments
+(
+    PaymentId   UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Vaikunth_Payments PRIMARY KEY,
+    TenantId    UNIQUEIDENTIFIER NOT NULL CONSTRAINT FK_Vaikunth_Payments_Tenants REFERENCES dbo.Vaikunth_Tenants(TenantId) ON DELETE CASCADE,
+    Period      DATE             NOT NULL,
+    Amount      DECIMAL(12, 2)   NOT NULL CONSTRAINT CK_Vaikunth_Payments_Amount CHECK (Amount > 0),
+    BillAmount  DECIMAL(12, 2)   NOT NULL,
+    PaidOn      DATE             NOT NULL,
+    Method      NVARCHAR(30)     NOT NULL,          -- Bank transfer | UPI | Cheque | Cash | Card
+    Reference   NVARCHAR(100)    NULL,              -- UTR, cheque number ...
+    Note        NVARCHAR(500)    NULL,
+    RecordedBy  UNIQUEIDENTIFIER NULL,
+    RecordedUtc DATETIME2(3)     NOT NULL CONSTRAINT DF_Vaikunth_Payments_Recorded DEFAULT (SYSUTCDATETIME())
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Vaikunth_Payments_Tenant')
+    CREATE INDEX IX_Vaikunth_Payments_Tenant ON dbo.Vaikunth_Payments(TenantId, Period);
 GO
 
 /* ===================== 4. remove old vk_ procedures ================== */
@@ -258,8 +343,9 @@ BEGIN
     SET NOCOUNT ON;
     SELECT u.UserId, u.TenantId, t.Name AS TenantName, u.DisplayName, u.Email, u.Role, u.AvatarTone, u.CreatedUtc,
            ISNULL(u.PasswordHash, N'') AS PasswordHash, u.IsActive,
-           CAST(ISNULL(t.IsActive, 1) AS BIT) AS TenantActive,
-           CAST(ISNULL(t.AppsEnabled, 7) AS TINYINT) AS AppsEnabled
+           CAST(CASE WHEN ISNULL(t.IsActive, 1) = 1 AND ISNULL(t.BillingBlocked, 0) = 0 THEN 1 ELSE 0 END AS BIT) AS TenantActive,
+           CAST(ISNULL(t.AppsEnabled, 31) AS TINYINT) AS AppsEnabled,
+           CAST(ISNULL(t.BillingBlocked, 0) AS BIT) AS TenantBillingBlocked
     FROM dbo.Vaikunth_Users u
     LEFT JOIN dbo.Vaikunth_Tenants t ON t.TenantId = u.TenantId
     WHERE u.Email = LOWER(@Email);
@@ -271,7 +357,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT u.UserId, u.TenantId, t.Name AS TenantName, u.DisplayName, u.Email, u.Role, u.AvatarTone, u.CreatedUtc,
-           CAST(ISNULL(t.AppsEnabled, 7) AS TINYINT) AS AppsEnabled
+           CAST(ISNULL(t.AppsEnabled, 31) AS TINYINT) AS AppsEnabled
     FROM dbo.Vaikunth_Users u LEFT JOIN dbo.Vaikunth_Tenants t ON t.TenantId = u.TenantId
     WHERE u.UserId = @UserId;
 END
@@ -293,11 +379,37 @@ BEGIN
     SELECT u.UserId, u.DisplayName, u.Email, u.Role, u.AvatarTone, u.IsActive, u.CreatedUtc, u.LastLoginUtc,
            CAST(CASE WHEN u.PasswordHash IS NULL THEN 1 ELSE 0 END AS BIT) AS IsInvited,
            i.DisplayName AS InvitedByName,
-           CASE WHEN u.Photo IS NULL THEN NULL ELSE u.PhotoUpdatedUtc END AS PhotoUpdatedUtc
+           CASE WHEN u.Photo IS NULL THEN NULL ELSE u.PhotoUpdatedUtc END AS PhotoUpdatedUtc,
+           u.Department, u.JobTitle, u.JoiningDate
     FROM dbo.Vaikunth_Users u
     LEFT JOIN dbo.Vaikunth_Users i ON i.UserId = u.InvitedBy
     WHERE u.TenantId = @TenantId
     ORDER BY CASE u.Role WHEN N'TenantAdmin' THEN 0 ELSE 1 END, u.DisplayName;
+END
+GO
+
+/* ---------- My account: a person changes their own name, email and password ---------- */
+/* Result 1 = saved, 0 = the email belongs to someone else. @PasswordHash NULL keeps the password.
+   A new password also cancels any open password links. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_User_UpdateAccount
+    @UserId UNIQUEIDENTIFIER, @DisplayName NVARCHAR(120), @Email NVARCHAR(200), @PasswordHash NVARCHAR(400) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    SET @Email = LOWER(LTRIM(RTRIM(@Email)));
+    IF EXISTS (SELECT 1 FROM dbo.Vaikunth_Users WHERE Email = @Email AND UserId <> @UserId) BEGIN SELECT 0 AS Result; RETURN; END
+    BEGIN TRAN;
+        UPDATE dbo.Vaikunth_Users
+        SET DisplayName = @DisplayName, Email = @Email,
+            PasswordHash = ISNULL(@PasswordHash, PasswordHash),
+            PasswordSetUtc = CASE WHEN @PasswordHash IS NULL THEN PasswordSetUtc ELSE SYSUTCDATETIME() END
+        WHERE UserId = @UserId;
+        IF @@ROWCOUNT = 0 BEGIN ROLLBACK; SELECT -1 AS Result; RETURN; END
+        IF @PasswordHash IS NOT NULL
+            UPDATE dbo.Vaikunth_PasswordLinks SET UsedUtc = SYSUTCDATETIME() WHERE UserId = @UserId AND UsedUtc IS NULL;
+    COMMIT;
+    SELECT 1 AS Result;
 END
 GO
 
@@ -342,7 +454,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT u.UserId, u.TenantId, t.Name AS TenantName, u.DisplayName, u.Email, u.Role, u.IsActive,
-           CAST(ISNULL(t.IsActive, 1) AS BIT) AS TenantActive,
+           CAST(CASE WHEN ISNULL(t.IsActive, 1) = 1 AND ISNULL(t.BillingBlocked, 0) = 0 THEN 1 ELSE 0 END AS BIT) AS TenantActive,
            CAST(CASE WHEN u.PasswordHash IS NULL THEN 1 ELSE 0 END AS BIT) AS IsInvited
     FROM dbo.Vaikunth_Users u LEFT JOIN dbo.Vaikunth_Tenants t ON t.TenantId = u.TenantId
     WHERE u.Email = LOWER(@Email);
@@ -353,7 +465,8 @@ GO
    Result: 1 added · 0 email already used · -1 the client has reached its user limit. */
 CREATE OR ALTER PROCEDURE dbo.Vaikunth_User_Invite
     @UserId UNIQUEIDENTIFIER, @TenantId UNIQUEIDENTIFIER, @DisplayName NVARCHAR(120), @Email NVARCHAR(200),
-    @Role NVARCHAR(20), @AvatarTone TINYINT, @InvitedBy UNIQUEIDENTIFIER
+    @Role NVARCHAR(20), @AvatarTone TINYINT, @InvitedBy UNIQUEIDENTIFIER,
+    @Department NVARCHAR(80) = NULL, @JobTitle NVARCHAR(80) = NULL, @JoiningDate DATE = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -362,9 +475,24 @@ BEGIN
     IF (SELECT COUNT(*) FROM dbo.Vaikunth_Users WHERE TenantId = @TenantId AND IsActive = 1) >=
        (SELECT ISNULL(t.MaxUsersOverride, p.MaxUsers) FROM dbo.Vaikunth_Tenants t JOIN dbo.Vaikunth_Plans p ON p.PlanId = t.PlanId WHERE t.TenantId = @TenantId)
     BEGIN SELECT -1 AS Result; RETURN; END
-    INSERT dbo.Vaikunth_Users (UserId, TenantId, DisplayName, Email, PasswordHash, Role, AvatarTone, InvitedBy)
-    VALUES (@UserId, @TenantId, @DisplayName, @Email, NULL, CASE WHEN @Role = N'TenantAdmin' THEN N'TenantAdmin' ELSE N'Member' END, @AvatarTone, @InvitedBy);
+    INSERT dbo.Vaikunth_Users (UserId, TenantId, DisplayName, Email, PasswordHash, Role, AvatarTone, InvitedBy, Department, JobTitle, JoiningDate)
+    VALUES (@UserId, @TenantId, @DisplayName, @Email, NULL, CASE WHEN @Role = N'TenantAdmin' THEN N'TenantAdmin' ELSE N'Member' END, @AvatarTone, @InvitedBy,
+            @Department, @JobTitle, @JoiningDate);
     SELECT 1 AS Result;
+END
+GO
+
+/* The client admin corrects someone's name, department, job title or joining date. Result 1 = saved, 0 = not in this client. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_User_UpdateDetails
+    @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @DisplayName NVARCHAR(120),
+    @Department NVARCHAR(80) = NULL, @JobTitle NVARCHAR(80) = NULL, @JoiningDate DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Vaikunth_Users
+    SET DisplayName = @DisplayName, Department = @Department, JobTitle = @JobTitle, JoiningDate = @JoiningDate
+    WHERE UserId = @UserId AND TenantId = @TenantId;
+    SELECT CASE WHEN @@ROWCOUNT = 1 THEN 1 ELSE 0 END AS Result;
 END
 GO
 
@@ -409,7 +537,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT l.Purpose, l.ExpiresUtc, l.UsedUtc, u.DisplayName, u.Email, u.IsActive,
-           t.Name AS TenantName, CAST(ISNULL(t.IsActive, 1) AS BIT) AS TenantActive
+           t.Name AS TenantName, CAST(CASE WHEN ISNULL(t.IsActive, 1) = 1 AND ISNULL(t.BillingBlocked, 0) = 0 THEN 1 ELSE 0 END AS BIT) AS TenantActive
     FROM dbo.Vaikunth_PasswordLinks l
     JOIN dbo.Vaikunth_Users u ON u.UserId = l.UserId
     LEFT JOIN dbo.Vaikunth_Tenants t ON t.TenantId = u.TenantId
@@ -425,7 +553,7 @@ BEGIN
     SET XACT_ABORT ON;
     DECLARE @UserId UNIQUEIDENTIFIER, @Active BIT, @TenantActive BIT;
     BEGIN TRAN;
-    SELECT @UserId = u.UserId, @Active = u.IsActive, @TenantActive = CAST(ISNULL(t.IsActive, 1) AS BIT)
+    SELECT @UserId = u.UserId, @Active = u.IsActive, @TenantActive = CAST(CASE WHEN ISNULL(t.IsActive, 1) = 1 AND ISNULL(t.BillingBlocked, 0) = 0 THEN 1 ELSE 0 END AS BIT)
     FROM dbo.Vaikunth_PasswordLinks l WITH (UPDLOCK)
     JOIN dbo.Vaikunth_Users u ON u.UserId = l.UserId
     LEFT JOIN dbo.Vaikunth_Tenants t ON t.TenantId = u.TenantId
@@ -478,15 +606,18 @@ BEGIN
            ISNULL(t.MaxUsersOverride, p.MaxUsers) AS MaxUsers,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Users u WHERE u.TenantId = t.TenantId AND u.IsActive = 1) AS ActiveUsers,
            CAST(ISNULL(t.StorageQuotaMbOverride, p.StorageQuotaMb) AS BIGINT) * 1048576 AS StorageQuotaBytes,
-           t.StorageUsedBytes, t.AppsEnabled,
+           t.StorageUsedBytes, t.AppsEnabled, t.StorageQuotaMbOverride,
+           p.PricePerUser, t.BillingFrom, t.BillingHoldUntil, t.BillingBlocked,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 1) AS Documents,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 2) AS Workbooks,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 3) AS Decks,
-           a.Email AS AdminEmail, a.UserId AS AdminUserId,
+           (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 4) AS Pdfs,
+           (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 5) AS Projects,
+           a.Email AS AdminEmail, a.UserId AS AdminUserId, a.DisplayName AS AdminName,
            CAST(CASE WHEN a.UserId IS NOT NULL AND a.PasswordHash IS NULL THEN 1 ELSE 0 END AS BIT) AS AdminPending
     FROM dbo.Vaikunth_Tenants t
     JOIN dbo.Vaikunth_Plans p ON p.PlanId = t.PlanId
-    OUTER APPLY (SELECT TOP 1 u.UserId, u.Email, u.PasswordHash FROM dbo.Vaikunth_Users u
+    OUTER APPLY (SELECT TOP 1 u.UserId, u.Email, u.PasswordHash, u.DisplayName FROM dbo.Vaikunth_Users u
                  WHERE u.TenantId = t.TenantId AND u.Role = N'TenantAdmin' ORDER BY u.CreatedUtc) a
     ORDER BY t.Name;
 END
@@ -502,6 +633,8 @@ BEGIN
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents WHERE IsDeleted = 0 AND AppKind = 1) AS Documents,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents WHERE IsDeleted = 0 AND AppKind = 2) AS Workbooks,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents WHERE IsDeleted = 0 AND AppKind = 3) AS Decks,
+           (SELECT COUNT(*) FROM dbo.Vaikunth_Documents WHERE IsDeleted = 0 AND AppKind = 4) AS Pdfs,
+           (SELECT COUNT(*) FROM dbo.Vaikunth_Documents WHERE IsDeleted = 0 AND AppKind = 5) AS Projects,
            (SELECT ISNULL(SUM(StorageUsedBytes), 0) FROM dbo.Vaikunth_Tenants) AS StorageUsedBytes;
 END
 GO
@@ -511,7 +644,9 @@ CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_Create
     @TenantId UNIQUEIDENTIFIER, @Name NVARCHAR(120), @Slug NVARCHAR(40), @PlanId INT, @AppsEnabled TINYINT,
     @AdminUserId UNIQUEIDENTIFIER, @AdminName NVARCHAR(120), @AdminEmail NVARCHAR(200),
     @AdminPasswordHash NVARCHAR(400) = NULL,   -- NULL = the admin sets their own password from the welcome email
-    @AdminTone TINYINT
+    @AdminTone TINYINT,
+    @MaxUsersOverride INT = NULL,              -- licenses: how many people this client may have. NULL = the plan's number
+    @BillingFrom DATE = NULL                   -- first month the client pays for. NULL = next month
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -521,7 +656,9 @@ BEGIN
     IF EXISTS (SELECT 1 FROM dbo.Vaikunth_Users WHERE Email = @AdminEmail) BEGIN SELECT -1 AS Result; RETURN; END
 
     BEGIN TRAN;
-        INSERT dbo.Vaikunth_Tenants (TenantId, Name, Slug, PlanId, AppsEnabled) VALUES (@TenantId, @Name, @Slug, @PlanId, @AppsEnabled);
+        INSERT dbo.Vaikunth_Tenants (TenantId, Name, Slug, PlanId, AppsEnabled, MaxUsersOverride, BillingFrom)
+        VALUES (@TenantId, @Name, @Slug, @PlanId, @AppsEnabled, @MaxUsersOverride,
+                ISNULL(@BillingFrom, DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1))));
         INSERT dbo.Vaikunth_Users (UserId, TenantId, DisplayName, Email, PasswordHash, Role, AvatarTone)
         VALUES (@AdminUserId, @TenantId, @AdminName, @AdminEmail, @AdminPasswordHash, N'TenantAdmin', @AdminTone);
     COMMIT;
@@ -531,13 +668,66 @@ GO
 
 CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_Update
     @TenantId UNIQUEIDENTIFIER, @Name NVARCHAR(120), @PlanId INT, @AppsEnabled TINYINT,
-    @MaxUsersOverride INT = NULL, @StorageQuotaMbOverride BIGINT = NULL, @IsActive BIT
+    @MaxUsersOverride INT = NULL, @StorageQuotaMbOverride BIGINT = NULL, @IsActive BIT, @BillingFrom DATE = NULL
 AS
 BEGIN
     UPDATE dbo.Vaikunth_Tenants
     SET Name = @Name, PlanId = @PlanId, AppsEnabled = @AppsEnabled,
-        MaxUsersOverride = @MaxUsersOverride, StorageQuotaMbOverride = @StorageQuotaMbOverride, IsActive = @IsActive
+        MaxUsersOverride = @MaxUsersOverride, StorageQuotaMbOverride = @StorageQuotaMbOverride, IsActive = @IsActive,
+        BillingFrom = ISNULL(@BillingFrom, BillingFrom)
     WHERE TenantId = @TenantId;
+END
+GO
+
+/* Plans and limits tab: every client on the plan gets the new limits straight away (unless it has its own number). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Plan_Update
+    @PlanId INT, @MaxUsers INT, @StorageQuotaMb BIGINT, @AppsEnabled TINYINT, @PricePerUser DECIMAL(10, 2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Vaikunth_Plans
+    SET MaxUsers = @MaxUsers, StorageQuotaMb = @StorageQuotaMb, AppsEnabled = @AppsEnabled, PricePerUser = @PricePerUser
+    WHERE PlanId = @PlanId;
+END
+GO
+
+/* Change plan (details pane): the client's licenses stay, storage goes back to the new plan's. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_SetPlan @TenantId UNIQUEIDENTIFIER, @PlanId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_Plans WHERE PlanId = @PlanId) RETURN;
+    UPDATE dbo.Vaikunth_Tenants SET PlanId = @PlanId, StorageQuotaMbOverride = NULL WHERE TenantId = @TenantId;
+END
+GO
+
+/* Delete a client for good: people, password links, stars, shares and the file list. The app removes the files on disk.
+   Result 1 = deleted, 0 = not found, 2 = still active (pause it first), 3 = the typed short name doesn't match. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_Delete @TenantId UNIQUEIDENTIFIER, @ConfirmSlug NVARCHAR(40)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @Slug NVARCHAR(40), @Active BIT;
+    SELECT @Slug = Slug, @Active = IsActive FROM dbo.Vaikunth_Tenants WHERE TenantId = @TenantId;
+    IF @Slug IS NULL BEGIN SELECT 0 AS Result; RETURN; END
+    IF @Active = 1 BEGIN SELECT 2 AS Result; RETURN; END
+    IF @Slug <> LOWER(LTRIM(RTRIM(@ConfirmSlug))) BEGIN SELECT 3 AS Result; RETURN; END
+
+    BEGIN TRAN;
+        DELETE s FROM dbo.Vaikunth_DocumentStars s
+        WHERE s.UserId IN (SELECT UserId FROM dbo.Vaikunth_Users WHERE TenantId = @TenantId)
+           OR s.DocumentId IN (SELECT DocumentId FROM dbo.Vaikunth_Documents WHERE TenantId = @TenantId);
+        DELETE s FROM dbo.Vaikunth_DocumentShares s
+        WHERE s.UserId IN (SELECT UserId FROM dbo.Vaikunth_Users WHERE TenantId = @TenantId)
+           OR s.DocumentId IN (SELECT DocumentId FROM dbo.Vaikunth_Documents WHERE TenantId = @TenantId);
+        IF OBJECT_ID(N'dbo.Vaikunth_DocumentsToMove', N'U') IS NOT NULL
+            EXEC sys.sp_executesql N'DELETE FROM dbo.Vaikunth_DocumentsToMove WHERE DocumentId IN (SELECT DocumentId FROM dbo.Vaikunth_Documents WHERE TenantId = @T)', N'@T UNIQUEIDENTIFIER', @T = @TenantId;
+        DELETE FROM dbo.Vaikunth_Documents WHERE TenantId = @TenantId;
+        DELETE FROM dbo.Vaikunth_Users WHERE TenantId = @TenantId;      -- password links go with them (ON DELETE CASCADE)
+        DELETE FROM dbo.Vaikunth_Tenants WHERE TenantId = @TenantId;
+    COMMIT;
+    SELECT 1 AS Result;
 END
 GO
 
@@ -549,8 +739,91 @@ BEGIN
 END
 GO
 
+/* =============================== billing (super admin) =============================== */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Billing_GetSettings
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT DueDay, GraceDays, AutoBlock FROM dbo.Vaikunth_BillingSettings WHERE Id = 1;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Billing_SaveSettings @DueDay TINYINT, @GraceDays INT, @AutoBlock BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Vaikunth_BillingSettings SET DueDay = @DueDay, GraceDays = @GraceDays, AutoBlock = @AutoBlock, UpdatedUtc = SYSUTCDATETIME() WHERE Id = 1;
+    IF @@ROWCOUNT = 0 INSERT dbo.Vaikunth_BillingSettings (Id, DueDay, GraceDays, AutoBlock) VALUES (1, @DueDay, @GraceDays, @AutoBlock);
+END
+GO
+
+/* Every payment (newest first), or one client's when @TenantId is set. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Payment_List @TenantId UNIQUEIDENTIFIER = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT p.PaymentId, p.TenantId, t.Name AS TenantName, p.Period, p.Amount, p.BillAmount, p.PaidOn, p.Method, p.Reference, p.Note,
+           u.DisplayName AS RecordedByName, p.RecordedUtc
+    FROM dbo.Vaikunth_Payments p
+    JOIN dbo.Vaikunth_Tenants t ON t.TenantId = p.TenantId
+    LEFT JOIN dbo.Vaikunth_Users u ON u.UserId = p.RecordedBy
+    WHERE @TenantId IS NULL OR p.TenantId = @TenantId
+    ORDER BY p.PaidOn DESC, p.RecordedUtc DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Payment_Add
+    @PaymentId UNIQUEIDENTIFIER, @TenantId UNIQUEIDENTIFIER, @Period DATE, @Amount DECIMAL(12, 2), @BillAmount DECIMAL(12, 2),
+    @PaidOn DATE, @Method NVARCHAR(30), @Reference NVARCHAR(100) = NULL, @Note NVARCHAR(500) = NULL, @RecordedBy UNIQUEIDENTIFIER = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_Tenants WHERE TenantId = @TenantId) BEGIN SELECT 0 AS Result; RETURN; END
+    INSERT dbo.Vaikunth_Payments (PaymentId, TenantId, Period, Amount, BillAmount, PaidOn, Method, Reference, Note, RecordedBy)
+    VALUES (@PaymentId, @TenantId, DATEFROMPARTS(YEAR(@Period), MONTH(@Period), 1), @Amount, @BillAmount, @PaidOn, @Method, @Reference, @Note, @RecordedBy);
+    SELECT 1 AS Result;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Payment_Delete @PaymentId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM dbo.Vaikunth_Payments WHERE PaymentId = @PaymentId;
+END
+GO
+
+/* Let a client in again: no block until @HoldUntil (NULL = take the hold off). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_SetHold @TenantId UNIQUEIDENTIFIER, @HoldUntil DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Vaikunth_Tenants SET BillingHoldUntil = @HoldUntil,
+        BillingBlocked = CASE WHEN @HoldUntil IS NOT NULL THEN 0 ELSE BillingBlocked END
+    WHERE TenantId = @TenantId;
+END
+GO
+
+/* The site sets this after working out who is too late (and clears it after a payment or for a free plan). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_SetBlocked @TenantId UNIQUEIDENTIFIER, @Blocked BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Vaikunth_Tenants SET BillingBlocked = @Blocked WHERE TenantId = @TenantId AND BillingBlocked <> @Blocked;
+END
+GO
+
+/* Clients that can't be used right now (paused or blocked): signed-in people of these clients are signed out. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_ListLocked
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TenantId FROM dbo.Vaikunth_Tenants WHERE IsActive = 0 OR BillingBlocked = 1;
+END
+GO
+
 /* =============================== documents =============================== */
-/* Files the person owns or was shared, newest first. @AppKind NULL = all three apps (the launcher). */
+/* Files the person owns or was shared, newest first. @AppKind NULL = all five apps (the launcher). */
 CREATE OR ALTER PROCEDURE dbo.Vaikunth_Document_Recent @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @AppKind TINYINT = NULL, @Take INT = 20
 AS
 BEGIN
@@ -594,7 +867,7 @@ BEGIN
     SET XACT_ABORT ON;
     DECLARE @Old BIGINT = 0, @Quota BIGINT, @Used BIGINT, @Path NVARCHAR(400) = @StoragePath;
     SELECT @Quota = CAST(ISNULL(t.StorageQuotaMbOverride, p.StorageQuotaMb) AS BIGINT) * 1048576, @Used = t.StorageUsedBytes
-    FROM dbo.Vaikunth_Tenants t JOIN dbo.Vaikunth_Plans p ON p.PlanId = t.PlanId WHERE t.TenantId = @TenantId AND t.IsActive = 1;
+    FROM dbo.Vaikunth_Tenants t JOIN dbo.Vaikunth_Plans p ON p.PlanId = t.PlanId WHERE t.TenantId = @TenantId AND t.IsActive = 1 AND t.BillingBlocked = 0;
     IF @Quota IS NULL RETURN;   -- client missing or switched off
     IF @IsNew = 0
         SELECT @Old = SizeBytes, @Path = CASE WHEN StoragePath = N'' THEN @StoragePath ELSE StoragePath END

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Hrishikesha Workbook (Excel): its editor (controller, view, JS and CSS) as a library. It runs inside Vaikunth.Office.Web
+       at /workbook, in its own browser tab. Sign-in, launcher, tag helpers and layouts come from Vaikunth.UI;
+       all data access is in Vaikunth.ServiceLibrary. Its wwwroot is served at /_content/Vaikunth.HrishikeshaWorkbook/... -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Vaikunth.HrishikeshaWorkbook</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vaikunth.DtoLibrary\Vaikunth.DtoLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.ServiceLibrary\Vaikunth.ServiceLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.UI\Vaikunth.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+  </ItemGroup>
+
+</Project>

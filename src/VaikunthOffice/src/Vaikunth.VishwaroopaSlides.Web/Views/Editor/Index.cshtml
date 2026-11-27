@@ -1,0 +1,93 @@
+@model DocumentDto
+@{
+    Layout = "_EditorLayout";   // full-window editor frame from Vaikunth.UI
+    ViewData["Title"] = Model.Title;
+}
+@section Styles { <link rel="stylesheet" href="~/css/slides.css" asp-append-version="true" /> }
+
+<vk-app-bar app="slides" doc-title="@Model.Title" user-name="@User.DisplayName()" avatar-tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
+
+<vk-ribbon>
+    <vk-ribbon-tab title="Home" active="true">
+        <vk-ribbon-group label="Slides">
+            <vk-ribbon-btn cmd="newSlide" arg="content" icon="plus-square" text="New slide" size="large" />
+            <vk-ribbon-select cmd="layout" options="title|Title slide,content|Title and content,blank|Blank" width="140" tooltip="Layout" />
+            <vk-ribbon-btn cmd="duplicate" icon="clone" tooltip="Duplicate slide" />
+            <vk-ribbon-btn cmd="deleteSlide" icon="trash-o" tooltip="Delete slide" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Font">
+            <vk-ribbon-select cmd="fontSize" options="16,20,24,28,30,32,36,40,48,54,64,72" selected="24" width="62" tooltip="Font size" />
+            <vk-ribbon-btn cmd="bold" icon="bold" tooltip="Bold" toggle="true" />
+            <vk-ribbon-btn cmd="italic" icon="italic" tooltip="Italic" toggle="true" />
+            <vk-ribbon-btn cmd="underline" icon="underline" tooltip="Underline" toggle="true" />
+            <vk-ribbon-color cmd="foreColor" icon="font" value="#C24A1C" tooltip="Font colour" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Paragraph">
+            <vk-ribbon-btn cmd="insertUnorderedList" icon="list-ul" tooltip="Bullets" toggle="true" />
+            <vk-ribbon-btn cmd="insertOrderedList" icon="list-ol" tooltip="Numbering" toggle="true" />
+            <vk-ribbon-btn cmd="justifyLeft" icon="align-left" tooltip="Align left" />
+            <vk-ribbon-btn cmd="justifyCenter" icon="align-center" tooltip="Centre" />
+            <vk-ribbon-btn cmd="justifyRight" icon="align-right" tooltip="Align right" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Drawing">
+            <vk-ribbon-btn cmd="addText" icon="font" text="Text box" />
+            <vk-ribbon-btn cmd="addShape" icon="square" text="Shape" />
+            <vk-ribbon-color cmd="shapeFill" icon="tint" value="#E8B04B" tooltip="Shape fill" />
+            <vk-ribbon-btn cmd="deleteBox" icon="times-circle" tooltip="Delete selected box" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Insert">
+        <vk-ribbon-group label="Slides">
+            <vk-ribbon-btn cmd="newSlide" arg="title" icon="header" text="Title slide" size="large" />
+            <vk-ribbon-btn cmd="newSlide" arg="content" icon="list-alt" text="Content" size="large" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Content">
+            <vk-ribbon-btn cmd="addText" icon="font" text="Text box" size="large" />
+            <vk-ribbon-btn cmd="addShape" icon="square-o" text="Shape" size="large" />
+            <vk-ribbon-btn cmd="addImage" icon="picture-o" text="Picture" size="large" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Design">
+        <vk-ribbon-group label="Themes">
+            <div class="sl-themes">
+                <button type="button" class="sl-theme t-sunrise" data-cmd="theme" data-arg="sunrise" title="Sunrise"><span>Aa</span></button>
+                <button type="button" class="sl-theme t-peacock" data-cmd="theme" data-arg="peacock" title="Peacock"><span>Aa</span></button>
+                <button type="button" class="sl-theme t-night" data-cmd="theme" data-arg="night" title="Night sky"><span>Aa</span></button>
+                <button type="button" class="sl-theme t-plain" data-cmd="theme" data-arg="plain" title="Plain"><span>Aa</span></button>
+            </div>
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Slide Show">
+        <vk-ribbon-group label="Start">
+            <vk-ribbon-btn cmd="present" arg="start" icon="play-circle" text="From beginning" size="large" />
+            <vk-ribbon-btn cmd="present" arg="current" icon="play" text="From this slide" size="large" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+</vk-ribbon>
+
+<div class="vk-work sl-work">
+    <aside class="sl-rail" id="rail" aria-label="Slides"></aside>
+    <section class="sl-stage-wrap">
+        <div class="sl-stage-area" id="stageArea">
+            <div class="sl-stage" id="stage"></div>
+        </div>
+        <div class="sl-notes"><textarea id="notes" placeholder="Click to add speaker notes"></textarea></div>
+    </section>
+</div>
+
+<vk-status-bar>
+    <span>Slide <b id="slideNo">1</b> of <b id="slideCount">1</b></span>
+    <span id="themeName"></span>
+    <span><i class="fa fa-sticky-note-o"></i> Notes</span>
+</vk-status-bar>
+
+<div class="sl-show" id="show" hidden>
+    <div class="sl-show-slide" id="showSlide"></div>
+    <div class="sl-show-bar"><span id="showNo"></span> · ← → to move, Esc to end</div>
+</div>
+
+@section Scripts {
+    <script id="docData" type="application/json">@Html.Raw(Model.Content.Replace("</", "<\\/"))</script>
+    <script>VK.docId = "@Model.DocumentId";</script>
+    <script src="~/js/slides.js" asp-append-version="true"></script>
+}

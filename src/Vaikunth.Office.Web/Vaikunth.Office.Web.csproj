@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Vaikunth Office: the ONE website you start. Sign-in, the landing page with the five apps, Clients and People
+       come from Vaikunth.UI; each editor comes from its own project and opens in its own browser tab:
+         /pages     Akshara Pages (Word)            Vaikunth.AksharaPages
+         /workbook  Hrishikesha Workbook (Excel)    Vaikunth.HrishikeshaWorkbook
+         /slides    Vishwaroopa Slides (PowerPoint) Vaikunth.VishwaroopaSlides
+         /reader    Shashvata Reader (PDFs)         Vaikunth.ShashvataReader
+         /planner   Dhruva Planner (projects)       Vaikunth.DhruvaPlanner -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Vaikunth.Office.Web</RootNamespace>
+    <Version>0.3.0</Version>
+    <Product>Vaikunth Office</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vaikunth.DtoLibrary\Vaikunth.DtoLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.ServiceLibrary\Vaikunth.ServiceLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.UI\Vaikunth.UI.csproj" />
+    <ProjectReference Include="..\Vaikunth.AksharaPages\Vaikunth.AksharaPages.csproj" />
+    <ProjectReference Include="..\Vaikunth.HrishikeshaWorkbook\Vaikunth.HrishikeshaWorkbook.csproj" />
+    <ProjectReference Include="..\Vaikunth.VishwaroopaSlides\Vaikunth.VishwaroopaSlides.csproj" />
+    <ProjectReference Include="..\Vaikunth.ShashvataReader\Vaikunth.ShashvataReader.csproj" />
+    <ProjectReference Include="..\Vaikunth.DhruvaPlanner\Vaikunth.DhruvaPlanner.csproj" />
+  </ItemGroup>
+
+</Project>

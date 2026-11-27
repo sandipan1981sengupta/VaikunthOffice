@@ -108,6 +108,16 @@ public static class SqlExtensions
         return p;
     }
 
+    public static SqlParameterCollection AddDate(this SqlParameterCollection p, string name, DateOnly? value)
+    {
+        p.Add(new SqlParameter(name, SqlDbType.Date) { Value = value is DateOnly d ? d.ToDateTime(TimeOnly.MinValue) : DBNull.Value });
+        return p;
+    }
+
+    public static DateOnly? DN(this SqlDataReader r, string column) => r[column] is DateTime d ? DateOnly.FromDateTime(d) : null;
+    public static DateOnly D(this SqlDataReader r, string column) => DateOnly.FromDateTime(Convert.ToDateTime(r[column]));
+    public static decimal M(this SqlDataReader r, string column) => Convert.ToDecimal(r[column]);
+
     public static SqlParameter AddOutput(this SqlParameterCollection p, string name, SqlDbType type)
     {
         var parameter = new SqlParameter(name, type) { Direction = ParameterDirection.Output };

@@ -1,0 +1,50 @@
+/* Vishwaroopa Slides · rail, stage, boxes, themes, slide show */
+.sl-work { display: flex; background: #EFEDEB; }
+.sl-rail { flex: none; width: 210px; overflow-y: auto; padding: 14px 12px 14px 8px; background: #F7F5F3; border-right: 1px solid #E5E1DD; display: flex; flex-direction: column; gap: 12px; }
+.sl-thumb { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.sl-thumb-no { width: 16px; text-align: right; font-size: 12px; color: #7A6F66; padding-top: 4px; }
+.sl-thumb-box { flex: 1; aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden; border: 2px solid transparent; box-shadow: 0 1px 3px rgba(0,0,0,.12); position: relative; }
+.sl-thumb.on .sl-thumb-box { border-color: #C24A1C; box-shadow: 0 0 0 3px rgba(194,74,28,.18); }
+.sl-thumb-box .sl-slide { width: 960px; height: 540px; transform: scale(var(--ts)); transform-origin: 0 0; pointer-events: none; }
+.sl-stage-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sl-stage-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 26px; overflow: hidden; }
+.sl-stage { width: 960px; height: 540px; flex: none; transform-origin: center; box-shadow: 0 2px 6px rgba(0,0,0,.08), 0 30px 60px -30px rgba(80,40,20,.45); }
+.sl-notes { flex: none; height: 84px; border-top: 1px solid #E5E1DD; background: #fff; }
+.sl-notes textarea { width: 100%; height: 100%; border: 0; resize: none; padding: 10px 16px; font-size: 13.5px; outline: none; }
+
+/* a slide (used on the stage, in thumbnails and in the show) */
+.sl-slide { position: relative; width: 100%; height: 100%; overflow: hidden; font-family: "Inter", "Segoe UI", system-ui, sans-serif; }
+.sl-slide.sunrise { background: linear-gradient(165deg, #FFFFFF 0%, #FFF7F0 58%, #FCE3D3 100%); color: #3A1F12; }
+.sl-slide.sunrise::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: linear-gradient(90deg, #C24A1C, #E8B04B); }
+.sl-slide.sunrise.layout-title::before { content: ""; position: absolute; right: -70px; bottom: -150px; width: 380px; height: 380px; border-radius: 50%; background: radial-gradient(circle, #F4C46C 0%, #E8B04B 45%, rgba(232,176,75,0) 70%); opacity: .75; }
+.sl-slide.peacock { background: linear-gradient(150deg, #0F4C5C 0%, #117A7A 60%, #14A3A0 100%); color: #F0FBFA; }
+.sl-slide.peacock::after { content: ""; position: absolute; right: 26px; top: 22px; width: 56px; height: 64px; border-radius: 50%; background: radial-gradient(ellipse, #1E2060 22%, #14A3A0 23%, #14A3A0 48%, #E8B04B 49%, #E8B04B 70%, transparent 71%); }
+.sl-slide.night { background: radial-gradient(1000px 500px at 80% 0%, #2B2F86 0%, #141634 60%); color: #EEF0FF; }
+.sl-slide.night::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: linear-gradient(90deg, #2B2F86, #14A3A0, #E08A2E); }
+.sl-slide.plain { background: #fff; color: #1F2238; }
+.sl-box { position: absolute; padding: 6px 10px; border: 1.5px dashed transparent; border-radius: 6px; line-height: 1.25; overflow: hidden; outline: none; display: flex; flex-direction: column; justify-content: center; }
+.sl-box.title { font-weight: 800; letter-spacing: -.02em; }
+.sunrise .sl-box.title { color: #A33A12; }
+.sl-box.subtitle { opacity: .8; }
+.sl-box.body { justify-content: flex-start; padding-top: 14px; }
+.sl-box ul, .sl-box ol { margin: 0; padding-left: 1.2em; }
+.sl-box li { margin: .25em 0; }
+.sl-box.shape { border-radius: 22px; text-align: center; align-items: center; color: #fff; box-shadow: 0 16px 30px -16px rgba(0,0,0,.45); }
+.sl-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sl-stage .sl-box:hover { border-color: rgba(194,74,28,.35); }
+.sl-stage .sl-box.on { border-color: #C24A1C; border-style: solid; cursor: move; }
+.sl-stage .sl-box.on:focus { cursor: text; }
+.sl-handle { position: absolute; right: -6px; bottom: -6px; width: 12px; height: 12px; border-radius: 3px; background: #fff; border: 2px solid #C24A1C; cursor: nwse-resize; display: none; }
+.sl-box.on .sl-handle { display: block; }
+.sl-themes { display: flex; gap: 8px; }
+.sl-theme { width: 74px; height: 46px; border-radius: 8px; border: 2px solid #E5E1DD; cursor: pointer; font-weight: 800; font-size: 17px; }
+.sl-theme.on { border-color: #C24A1C; }
+.t-sunrise { background: linear-gradient(165deg, #fff, #FCE3D3); color: #A33A12; box-shadow: inset 0 -5px 0 #E8B04B; }
+.t-peacock { background: linear-gradient(150deg, #0F4C5C, #14A3A0); color: #fff; }
+.t-night { background: radial-gradient(circle at 80% 0, #2B2F86, #141634); color: #fff; }
+.t-plain { background: #fff; color: #1F2238; }
+
+.sl-show { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; align-items: center; justify-content: center; }
+.sl-show-slide { width: 960px; height: 540px; flex: none; }
+.sl-show-bar { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.55); font-size: 12px; }
+@media (max-width: 900px) { .sl-rail { width: 120px; } }

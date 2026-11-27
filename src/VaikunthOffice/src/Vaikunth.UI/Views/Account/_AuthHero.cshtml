@@ -1,0 +1,24 @@
+@* Left side of the sign-in page: logo, name, the three apps, one line, and the verse. *@
+<section class="vk-hero">
+    <div class="vk-brand-row">
+        <span class="vk-brand-tile"><vk-app-icon app="suite" size="84" /></span>
+        <div>
+            <h1 class="vk-wordmark">VAIKUNTH <span>OFFICE</span></h1>
+            <p class="vk-by">Write · Calculate · Present</p>
+        </div>
+    </div>
+
+    <p class="vk-hero-line">Documents, workbooks and slides, <span class="vk-grad-text">in one calm place.</span></p>
+
+    <ul class="vk-hero-apps">
+        @foreach (var a in SuiteApps.All)
+        {
+            <li style="--tile:@a.Color;--tile-tint:@a.Tint">
+                <img src="@a.IconUrl" alt="" width="52" height="52" />
+                <span><b>@a.Name</b><small>@a.Kind · @a.Tagline</small></span>
+            </li>
+        }
+    </ul>
+
+    <vk-verse variant="hero" />
+</section>

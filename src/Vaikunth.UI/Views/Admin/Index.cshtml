@@ -1,206 +1,552 @@
-@inject Vaikunth.ServiceLibrary.IDocumentFileStore Files
 @model AdminViewModel
-@inject Vaikunth.ServiceLibrary.IAppEmailSender Mail
+@inject Vaikunth.ServiceLibrary.IDocumentFileStore Files
+@using System.Globalization
+@using System.Text.Json
+@using Vaikunth.ServiceLibrary
 @{
     ViewData["Title"] = "Clients";
-    var planOptions = string.Join(",", Model.Plans.Select(p => $"{p.PlanId}|{p.Name} · {p.MaxUsers} users · {Sizes.Bytes(p.StorageQuotaMb * 1048576)}"));
-    var firstPlan = Model.Plans.Skip(1).FirstOrDefault()?.PlanId ?? Model.Plans.FirstOrDefault()?.PlanId ?? 1;
-}
-<section class="vk-admin-head">
-    <div>
-        <div class="vk-eyebrow"><i class="fa fa-shield"></i> Super admin</div>
-        <h1>Clients</h1>
-        <p class="vk-muted">Every company that uses Vaikunth Office. Add a client, choose its plan and apps, or switch it off.
-            The client's admin gets an email to set their password, then adds their own office.</p>
-    </div>
-    <button type="button" class="vk-btn vk-btn-grad" data-open-dialog="newClient"><i class="fa fa-plus"></i> New client</button>
-</section>
-@if (!Mail.IsConfigured)
-{
-    <div class="vk-banner info"><i class="fa fa-flask"></i> Email isn't set up on this server yet, so welcome emails go to the developer outbox.
-        <a class="vk-link" href="/dev/outbox" target="_blank">Open the outbox</a></div>
-}
+    ViewData["Section"] = "admin";
+    Layout = "_AdminLayout";
+    var inv = CultureInfo.InvariantCulture;
+    var clients = Model.Clients;
+    var plans = Model.Plans;
+    var billing = Model.Billing;
+    var bills = billing.Bills;
+    var today = billing.Today;
+    var thisMonth = Money.FirstOfMonth(today);
+    var rules = billing.Settings;
+    var firstPlan = plans.Skip(1).FirstOrDefault()?.PlanId ?? plans.FirstOrDefault()?.PlanId ?? 1;
+    var planItems = plans.Select(p => (p.PlanId.ToString(inv),
+        $"{p.Name} · {p.MaxUsers} users · {Sizes.Bytes(p.StorageQuotaMb * 1048576)} · {(p.PricePerUser == 0 ? "free" : Money.Rupees(p.PricePerUser) + " a user")}")).ToList();
 
-@if (TempData["Ok"] is string ok) { <div class="vk-banner ok"><i class="fa fa-check-circle"></i> @ok</div> }
-@if (TempData["Error"] is string err) { <div class="vk-banner err"><i class="fa fa-exclamation-circle"></i> @err</div> }
+    // storage: exact %, a readable text ("less than 0.1%") and a colour level
+    (double Pct, string Text, string Level) Use(long used, long quota)
+    {
+        var pct = quota <= 0 ? 0d : Math.Min(100d, used * 100d / quota);
+        var text = used <= 0 ? "0%" : pct < 0.1 ? "less than 0.1%" : pct < 10 ? pct.ToString("0.0", inv) + "%" : Math.Round(pct).ToString(inv) + "%";
+        return (pct, text, pct >= 90 ? "full" : pct >= 75 ? "warn" : "");
+    }
+    string Iso(DateOnly? d) => d?.ToString("yyyy-MM-dd", inv) ?? "";
+    string MonthPick(DateOnly? d) => d?.ToString("MM-yyyy", inv) ?? "";
 
-<section class="vk-stats">
-    <vk-stat-card icon="building-o" label="Clients" value="@Model.Stats.Clients.ToString()" sub="@($"{Model.Stats.ActiveClients} active")" tone="navy" />
-    <vk-stat-card icon="users" label="People" value="@Model.Stats.Users.ToString("N0")" sub="across all clients" tone="peacock" />
-    <vk-stat-card icon="files-o" label="Files" value="@((Model.Stats.Documents + Model.Stats.Workbooks + Model.Stats.Decks).ToString("N0"))"
-                  sub="@($"{Model.Stats.Documents:N0} docs · {Model.Stats.Workbooks:N0} sheets · {Model.Stats.Decks:N0} decks")" tone="green" />
-    <vk-stat-card icon="database" label="Storage used" value="@Sizes.Bytes(Model.Stats.StorageUsedBytes)" sub="files on the server" tone="saffron" />
-</section>
-
-<section class="vk-recent glass-soft">
-    <div class="vk-recent-head">
-        <form class="vk-admin-search" method="get" action="/admin">
-            <i class="fa fa-search"></i><input name="q" value="@Model.Search" placeholder="Search clients, short names or admin emails" />
-            <input type="hidden" name="show" value="@Model.Show" />
-        </form>
-        <nav class="vk-chips">
-            <a class="@(Model.Show == "all" ? "on" : "")" href="/admin?show=all&q=@Model.Search">All</a>
-            <a class="@(Model.Show == "active" ? "on" : "")" href="/admin?show=active&q=@Model.Search">Active</a>
-            <a class="@(Model.Show == "off" ? "on" : "")" href="/admin?show=off&q=@Model.Search">Switched off</a>
-        </nav>
-    </div>
-    <div class="vk-table-scroll">
-    <table class="vk-files vk-clients">
-        <thead><tr><th>Client</th><th>Plan</th><th>Apps</th><th>People</th><th>Storage</th><th>Files</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-        @foreach (var c in Model.Clients)
+    // ---- Clients grid (modern-table): one row per client; the extra fields fill the details pane ----
+    var clientRows = clients.Select(c =>
+    {
+        var use = Use(c.StorageUsedBytes, c.StorageQuotaBytes);
+        var b = bills[c.TenantId];
+        return new Dictionary<string, object?>
         {
-            <tr class="@(c.IsActive ? "" : "is-off")">
-                <td>
-                    <div class="vk-client">
-                        <span class="vk-client-av tone-@(Math.Abs(c.Slug.GetHashCode()) % 6)">@Names.Initials(c.Name)</span>
-                        <span><b>@c.Name</b><small>@c.Slug · @(c.AdminEmail ?? "no admin yet")</small>
-                            @if (c.AdminPending) { <em class="vk-state vk-state-invited">Admin invited</em> }</span>
-                    </div>
-                </td>
-                <td><span class="vk-pill plan-@c.PlanName.ToLowerInvariant()">@c.PlanName</span></td>
-                <td><vk-app-badges value="@((int)c.Apps)" /></td>
-                <td style="min-width:130px"><vk-progress percent="@c.UserPercent" text="@($"{c.ActiveUsers} of {c.MaxUsers}")" /></td>
-                <td style="min-width:150px"><vk-progress percent="@c.StoragePercent" text="@($"{Sizes.Bytes(c.StorageUsedBytes)} of {Sizes.Bytes(c.StorageQuotaBytes)}")" /></td>
-                <td class="vk-file-counts">
-                    <span title="Akshara Pages documents"><img src="/_content/Vaikunth.UI/images/app-pages.svg" width="16" height="16" alt="" /> @c.Documents</span>
-                    <span title="Hrishikesha Workbook sheets"><img src="/_content/Vaikunth.UI/images/app-workbook.svg" width="16" height="16" alt="" /> @c.Workbooks</span>
-                    <span title="Vishwaroopa Slides decks"><img src="/_content/Vaikunth.UI/images/app-slides.svg" width="16" height="16" alt="" /> @c.Decks</span>
-                </td>
-                <td>
-                    <form method="post" action="/admin/active">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="tenantId" value="@c.TenantId" /><input type="hidden" name="name" value="@c.Name" />
-                        <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
-                        <button type="submit" class="vk-status-pill @(c.IsActive ? "on" : "off")" title="@(c.IsActive ? "Switch off" : "Switch on")">
-                            <span></span>@(c.IsActive ? "Active" : "Off")
-                        </button>
-                    </form>
-                </td>
-                <td class="vk-row-actions">
-                    @if (c.AdminPending && c.IsActive)
-                    {
-                        <form method="post" action="/admin/resend" class="vk-inline-form">
-                            @Html.AntiForgeryToken()<input type="hidden" name="tenantId" value="@c.TenantId" />
-                            <button type="submit" class="vk-btn vk-btn-light vk-btn-sm" title="Send the welcome email again"><i class="fa fa-paper-plane"></i> Resend</button>
-                        </form>
-                    }
-                    <button type="button" class="vk-btn vk-btn-light vk-btn-sm" data-edit-client
-                            data-id="@c.TenantId" data-name="@c.Name" data-plan="@c.PlanId" data-apps="@((int)c.Apps)" data-active="@c.IsActive.ToString().ToLowerInvariant()"
-                            data-maxusers="@c.MaxUsers" data-storagemb="@(c.StorageQuotaBytes / 1048576)"><i class="fa fa-pencil"></i> Edit</button>
-                </td>
-            </tr>
-        }
-        @if (Model.Clients.Count == 0)
-        {
-            <tr><td colspan="8" class="vk-empty">No clients match. Add one with New client.</td></tr>
-        }
-        </tbody>
-    </table>
-    </div>
-</section>
+            ["Id"] = c.TenantId.ToString(), ["Name"] = c.Name, ["Slug"] = c.Slug, ["Plan"] = c.PlanName,
+            ["Licenses"] = $"{c.ActiveUsers} / {c.MaxUsers}", ["Monthly"] = c.IsFree ? 0 : c.MonthlyBill,
+            ["Bill"] = b.StateText, ["Outstanding"] = b.Outstanding,
+            ["Storage"] = $"{Sizes.Bytes(c.StorageUsedBytes)} of {Sizes.Bytes(c.StorageQuotaBytes)}",
+            ["Apps"] = string.Join(", ", SuiteApps.All.Where(a => c.Apps.HasFlag(a.App.Flag())).Select(a => a.Kind)),
+            ["Files"] = c.Files, ["Admin"] = c.AdminEmail ?? "", ["Since"] = c.CreatedUtc.ToString("yyyy-MM-dd", inv),
+            ["Status"] = c.IsActive ? (c.AdminPending ? "Invited" : "Active") : "Paused",
+            // details pane only
+            ["initials"] = Names.Initials(c.Name), ["planId"] = c.PlanId, ["apps"] = (int)c.Apps, ["active"] = c.IsActive,
+            ["users"] = c.ActiveUsers, ["maxUsers"] = c.MaxUsers, ["usersPct"] = c.UserPercent,
+            ["storage"] = Sizes.Bytes(c.StorageUsedBytes), ["storageFree"] = Sizes.Bytes(Math.Max(0, c.StorageQuotaBytes - c.StorageUsedBytes)),
+            ["quota"] = Sizes.Bytes(c.StorageQuotaBytes), ["quotaMb"] = c.StorageQuotaBytes / 1048576, ["storageOverrideMb"] = c.StorageOverrideMb,
+            ["storagePct"] = use.Pct, ["storageText"] = use.Text, ["storageLevel"] = use.Level,
+            ["since"] = c.CreatedUtc.ToLocalTime().ToString("d MMM yyyy", inv),
+            ["admin"] = c.AdminName, ["adminEmail"] = c.AdminEmail, ["adminPending"] = c.AdminPending,
+            ["docs"] = c.Documents, ["sheets"] = c.Workbooks, ["decks"] = c.Decks, ["pdfs"] = c.Pdfs, ["projects"] = c.Projects,
+            // money
+            ["free"] = c.IsFree, ["price"] = c.PricePerUser, ["monthly"] = c.MonthlyBill, ["monthlyText"] = Money.Rupees(c.MonthlyBill),
+            ["billMath"] = c.IsFree ? "Free plan · never billed" : $"{c.MaxUsers} licenses × {Money.Rupees(c.PricePerUser)} = {Money.Rupees(c.MonthlyBill)} a month",
+            ["billState"] = b.State.ToString().ToLowerInvariant(), ["billText"] = b.StateText, ["billLine"] = BillingCalculator.Describe(b, today),
+            ["outstanding"] = b.Outstanding, ["outstandingText"] = Money.Rupees(b.Outstanding),
+            ["unpaid"] = b.UnpaidMonths.Select(Money.Month).ToList(), ["unpaidFirst"] = MonthPick(b.OldestUnpaid ?? thisMonth),
+            ["paidThisMonth"] = Money.Rupees(b.PaidThisMonth), ["lastPaid"] = b.LastPaidOn is DateOnly lp ? Money.Day(lp) : "Never",
+            ["holdUntil"] = b.HoldUntil is DateOnly h && h >= today ? Money.Day(h) : null,
+            ["billingFrom"] = MonthPick(c.BillingFrom), ["billingFromText"] = c.BillingFrom is DateOnly bf ? Money.Month(bf) : "-"
+        };
+    }).ToList();
 
-<section class="vk-admin-lower">
-    <div class="glass-soft vk-card">
-        <h2><i class="fa fa-tags"></i> Plans</h2>
-        <div class="vk-plans">
-            @foreach (var p in Model.Plans)
-            {
-                <div class="vk-plan">
-                    <b>@p.Name</b>
-                    <span class="vk-plan-price">@(p.PricePerUser == 0 ? "Free" : $"₹{p.PricePerUser:0} / user / month")</span>
-                    <ul>
-                        <li><i class="fa fa-users"></i> Up to @p.MaxUsers people</li>
-                        <li><i class="fa fa-database"></i> @Sizes.Bytes(p.StorageQuotaMb * 1048576) storage</li>
-                        <li><vk-app-badges value="@((int)p.Apps)" /></li>
-                    </ul>
+    // ---- Payments tab ----
+    var billRows = clients.Where(c => !c.IsFree).Select(c =>
+    {
+        var b = bills[c.TenantId];
+        return new Dictionary<string, object?>
+        {
+            ["Id"] = c.TenantId.ToString(), ["Name"] = c.Name, ["Plan"] = c.PlanName, ["Monthly"] = c.MonthlyBill,
+            ["Bill"] = b.StateText, ["ThisMonth"] = b.PaidThisMonth, ["Outstanding"] = b.Outstanding,
+            ["Unpaid"] = b.UnpaidMonths.Count == 0 ? "-" : string.Join(", ", b.UnpaidMonths.Select(Money.Month)),
+            ["DueOn"] = Iso(b.State is BillState.Paid or BillState.NotStarted ? b.DueOn : b.DueOn),
+            ["BlocksOn"] = b.State is BillState.Overdue or BillState.Due or BillState.Blocked or BillState.OnHold ? Iso(b.BlocksOn) : "",
+            ["LastPaid"] = Iso(b.LastPaidOn)
+        };
+    }).ToList();
+    var payRows = billing.Payments.Select(p => new Dictionary<string, object?>
+    {
+        ["Id"] = p.PaymentId.ToString(), ["PaidOn"] = Iso(p.PaidOn), ["Client"] = p.TenantName, ["Month"] = Money.Month(p.Period),
+        ["Amount"] = p.Amount, ["Method"] = p.Method, ["Reference"] = p.Reference ?? "", ["By"] = p.RecordedByName ?? "",
+        ["Note"] = p.Note ?? "", ["amountText"] = Money.Rupees(p.Amount)
+    }).ToList();
+
+    // last six months: billed vs received
+    var months = Enumerable.Range(0, 6).Select(i => thisMonth.AddMonths(i - 5)).ToList();
+    var billedSeries = months.Select(m => (double)clients.Where(c => !c.IsFree && c.BillingFrom is DateOnly f && f <= m).Sum(c =>
+    {
+        var rows = billing.Payments.Where(p => p.TenantId == c.TenantId && p.Period == m).ToList();
+        return rows.Count > 0 ? rows.Max(p => p.BillAmount) : c.MonthlyBill;
+    })).ToList();
+    var receivedSeries = months.Select(m => (double)billing.Payments.Where(p => p.Period == m).Sum(p => p.Amount)).ToList();
+    var chartSeries = new List<Vaikunth.UI.TagHelpers.Modern.ColumnChartSeries>
+    {
+        new() { Label = "Billed", Values = billedSeries, Color = "#9AA2F2" },
+        new() { Label = "Received", Values = receivedSeries, Color = "#14A3A0" }
+    };
+
+    var billedClients = clients.Where(c => !c.IsFree).ToList();
+    var payClientItems = billedClients.Select(c => (c.TenantId.ToString(), $"{c.Name} · {Money.Rupees(c.MonthlyBill)} a month")).ToList();
+    var dueDayItems = Enumerable.Range(1, 28).Select(d => (d.ToString(inv), $"{Money.Ordinal(d)} of every month")).ToList();
+    var methodOptions = BillingRules.Methods.Select(m => new Vaikunth.UI.TagHelpers.Modern.ModernRadioOption { Value = m, Text = m }).ToList();
+
+    var totalUsers = clients.Sum(c => c.ActiveUsers);
+    var totalSeats = clients.Sum(c => c.MaxUsers);
+    var totalUsed = clients.Sum(c => c.StorageUsedBytes);
+    var totalQuota = clients.Sum(c => c.StorageQuotaBytes);
+    var totalUse = Use(totalUsed, totalQuota);
+    var active = clients.Count(c => c.IsActive);
+    var expected = billing.ExpectedThisMonth;
+    var received = billing.ReceivedThisMonth;
+    var gotPct = expected <= 0 ? 0d : Math.Min(100d, (double)(received * 100 / expected));
+    var ok = TempData["Ok"] as string;
+    var error = TempData["Error"] as string;
+    var reopenNew = TempData["ReopenNew"] is true;
+}
+
+<div class="vk-admin-ws">
+    @* ---- title bar and toolbar ---- *@
+    <vk-action-header id="AdminHeader" heading="Client workspaces" icon="shield"
+                      subtitle="@($"Super admin · {clients.Count} {(clients.Count == 1 ? "client" : "clients")} · {plans.Count} plans · payment due on the {Money.Ordinal(rules.DueDay)}")">
+        <vk-action-btn text="Refresh" icon="refresh" cmd="refresh" tone="blue" tooltip="Load the latest numbers" />
+        <vk-action-btn text="New client" icon="plus" cmd="newClient" tone="blue" scope="clients" tooltip="Add a client company and its admin" />
+        <vk-action-btn text="Edit" icon="pencil" cmd="editClient" tone="amber" scope="clients" tooltip="Edit the selected client" />
+        <vk-action-btn text="Delete" icon="trash" cmd="deleteClient" tone="red" scope="clients" tooltip="Delete the selected client for good (pause it first)" />
+        <vk-action-btn text="Record payment" icon="inr" cmd="recordPayment" tone="green" scope="clients payments" separator="true" tooltip="Note money a client has paid" />
+        <vk-action-btn text="Let in again" icon="unlock-alt" cmd="letIn" tone="pink" scope="clients payments" tooltip="Let a late or blocked client sign in again until a day you pick" />
+        <vk-action-btn text="Delete payment" icon="times-circle" cmd="deletePayment" tone="red" scope="payments" tooltip="Remove the selected payment (if it was noted by mistake)" />
+        <vk-action-btn text="Export" icon="file-excel-o" cmd="exportGrid" tone="green" scope="clients payments" separator="true" tooltip="Download the list as a CSV file for Excel" />
+        <vk-action-btn text="Print" icon="print" cmd="print" tone="slate" tooltip="Print this page" />
+        <vk-action-btn text="Pause / Resume" icon="pause-circle" cmd="toggleClient" tone="amber" scope="clients" tooltip="Pause or resume the selected client" />
+        <vk-action-btn text="Email admin link" icon="envelope" cmd="emailAdmin" tone="pink" scope="clients"
+                       tooltip="Email the selected client's admin a link to set their own password" />
+    </vk-action-header>
+
+    @if (error is not null) { <div class="vk-banner err"><i class="fa fa-exclamation-circle"></i><span>@error</span></div> }
+    @if (ok is not null) { <div hidden data-toast="@ok"></div> }
+    @if (!Model.EmailConfigured)
+    {
+        <div class="vk-banner info"><i class="fa fa-flask"></i><span>Email isn't set up on this server yet (appsettings <code>Smtp</code>), so emails go to the developer outbox instead of being sent.</span>
+            <a class="vk-link" href="/dev/outbox" target="_blank">Open the outbox</a></div>
+    }
+    @if (billing.Late > 0)
+    {
+        <div class="vk-banner warn"><i class="fa fa-exclamation-triangle"></i>
+            <span><b>@billing.Late @(billing.Late == 1 ? "client hasn't" : "clients haven't") paid on time</b>@(billing.Blocked > 0 ? $" ({billing.Blocked} blocked)" : "") · @Money.Rupees(billing.Outstanding) still to come.</span>
+            <button type="button" class="vk-link vk-link-btn" data-cmd="openPayments">See who</button></div>
+    }
+
+    @* ---- key figures in one strip ---- *@
+    <section class="vk-kpis vk-kpis-5 vk-glass-card" aria-label="Summary">
+        <vk-kpi icon="building-o" tone="blue" label="Clients" value="@clients.Count.ToString()" dot="@($"{active} active")" sub="@($"{clients.Count - active} paused")" />
+        <vk-kpi icon="users" tone="violet" label="Users" value="@totalUsers.ToString("N0")" sub="@($"of {totalSeats:N0} licenses in use")" />
+        <vk-kpi icon="hdd-o" tone="pink" label="Storage" value="@Sizes.Bytes(totalUsed)" percent="@totalUse.Pct" percent-text="@totalUse.Text"
+                sub="@($"of {Sizes.Bytes(totalQuota)}")" />
+        <vk-kpi icon="inr" tone="green" label="@($"Received in {Money.Month(thisMonth)}")" value="@Money.Rupees(received)" percent="@gotPct"
+                percent-text="@($"{Math.Round(gotPct)}%")" sub="@($"of {Money.Rupees(expected)} billed")" />
+        <vk-kpi icon="exclamation-triangle" tone="amber" label="Still to come" value="@Money.Rupees(billing.Outstanding)"
+                sub="@(billing.Late == 0 ? "nobody is late" : $"{billing.Late} late · {billing.Blocked} blocked")" />
+    </section>
+
+    @* ---- three views: clients, payments and plans ---- *@
+    <vk-tabs id="adminTabs" active="@Model.Tab">
+        <vk-tab key="clients" text="Clients" icon="building-o" badge="@clients.Count.ToString()" hint="Select a client to see its details, its bill and change its plan." />
+        <vk-tab key="payments" text="Payments" icon="inr" badge="@(billing.Late > 0 ? billing.Late.ToString() : null)" hint="Who has paid this month, money received, and the payment rules." />
+        <vk-tab key="plans" text="Plans and limits" icon="sliders" badge="@plans.Count.ToString()" hint="Edit a plan and press Save. Every client on that plan gets the new limits." />
+    </vk-tabs>
+
+    <section class="vk-pane" data-pane="clients">
+        <div class="vk-admin-grid">
+            @* ---- the list ---- *@
+            <modern-table id="clientGrid" name="SelectedClient"
+                          grid-name="All clients" icon="building" icon-background-color="#EEF0FB" icon-color="#2B2F86"
+                          searchable="true" search-placeholder="Search clients..."
+                          show-filter-button="true" column-toggle="true" selectable="true" enable-paging="true" page-size="10"
+                          is-animated-scrolling="true" row-height="52px" header-height="44px" row-font-size="13.5px"
+                          row-id-field="Id" table-height="520px" items="clientRows">
+                <column field="Id" header="Id" visible="false" filterable="false" sortable="false"></column>
+                <column field="Name" header="Company" width="190px"></column>
+                <column field="Slug" header="Short name" width="130px" visible="false"></column>
+                <column field="Plan" header="Plan" type="badge" width="110px" badge-default-color="#EEF0FB">
+                    <badge value="Starter" color="#EEF0F6"></badge>
+                    <badge value="Business" color="#E3E5FB"></badge>
+                    <badge value="Enterprise" color="#FBE3EF"></badge>
+                </column>
+                <column field="Licenses" header="Licenses" width="100px" cell-align="right" header-align="right"></column>
+                <column field="Monthly" header="Monthly bill" width="120px" cell-align="right" header-align="right" format="₹C0"></column>
+                <column field="Bill" header="Payment" type="badge" width="120px">
+                    <badge value="Paid" color="#DDF3EA"></badge>
+                    <badge value="Due" color="#E3E5FB"></badge>
+                    <badge value="Overdue" color="#FFE9C7"></badge>
+                    <badge value="On hold" color="#FBE3EF"></badge>
+                    <badge value="Blocked" color="#FDD9CD"></badge>
+                    <badge value="Free" color="#EEF0F6"></badge>
+                    <badge value="Not started" color="#EEF0F6"></badge>
+                </column>
+                <column field="Outstanding" header="Unpaid" width="110px" cell-align="right" header-align="right" format="₹C0" visible="false"></column>
+                <column field="Storage" header="Storage" width="160px"></column>
+                <column field="Apps" header="Apps" width="200px" visible="false"></column>
+                <column field="Files" header="Files" width="80px" cell-align="right" header-align="right"></column>
+                <column field="Admin" header="Admin" width="200px" visible="false"></column>
+                <column field="Since" header="Client since" width="120px" format="dd-mm-yyyy" visible="false"></column>
+                <column field="Status" header="Status" type="badge" width="100px">
+                    <badge value="Active" color="#DDF3EA"></badge>
+                    <badge value="Invited" color="#FBE3EF"></badge>
+                    <badge value="Paused" color="#FFF0D4"></badge>
+                </column>
+            </modern-table>
+
+            @* ---- details of the selected client ---- *@
+            <aside class="vk-insp vk-glass-card" id="clientInspector" data-state="empty" aria-live="polite">
+                <div class="vk-insp-empty">
+                    <span class="vk-insp-empty-ic"><i class="fa fa-hand-pointer-o" aria-hidden="true"></i></span>
+                    <strong>No client selected</strong>
+                    <span>Pick a row in the list to see usage and the bill, record a payment, change the plan or pause the client.</span>
                 </div>
+                <div class="vk-insp-body">
+                    <div class="vk-insp-head">
+                        <span class="vk-co-av big" id="selIni">?</span>
+                        <div class="vk-insp-id"><strong id="selName">-</strong>
+                            <button type="button" class="vk-insp-link" id="selSlug" title="Copy the short name"><span></span> <i class="fa fa-clone" aria-hidden="true"></i></button></div>
+                        <span class="vk-badge" id="selStatus">Active</span>
+                    </div>
+
+                    @* money first: what it pays, and whether it has *@
+                    <div class="vk-insp-section vk-bill-box" id="selBillBox" data-bill="paid">
+                        <div class="vk-insp-label">Bill</div>
+                        <div class="vk-bill-head"><b id="selMonthly">-</b><span class="vk-bill-state" id="selBillState">-</span></div>
+                        <div class="vk-bill-math" id="selBillMath">-</div>
+                        <div class="vk-bill-line" id="selBillLine">-</div>
+                        <dl class="vk-insp-kv vk-bill-kv">
+                            <div><dt>Unpaid</dt><dd id="selOutstanding">-</dd></div>
+                            <div><dt>Paid this month</dt><dd id="selPaidThis">-</dd></div>
+                            <div><dt>Last payment</dt><dd id="selLastPaid">-</dd></div>
+                            <div><dt>Billing since</dt><dd id="selBillFrom">-</dd></div>
+                        </dl>
+                        <div class="vk-bill-btns" id="selBillBtns">
+                            <button type="button" class="vk-btn vk-btn-grad vk-btn-sm" data-cmd="recordPayment"><i class="fa fa-inr" aria-hidden="true"></i> Record payment</button>
+                            <button type="button" class="vk-btn vk-btn-light vk-btn-sm" data-cmd="letIn" id="selLetIn"><i class="fa fa-unlock-alt" aria-hidden="true"></i> Let in again</button>
+                        </div>
+                    </div>
+
+                    <div class="vk-insp-section">
+                        <div class="vk-insp-label">Usage</div>
+                        <div class="vk-use"><span>Licenses used</span><b id="selUsers">-</b></div>
+                        <div class="vk-meter"><i id="selUsersBar" style="width:0%"></i></div>
+                        <div class="vk-use"><span>Storage</span><span class="vk-kpi-pct" id="selStoragePct">-</span></div>
+                        <div class="vk-kpi-bar"><i id="selStorageBar" style="width:0%"></i></div>
+                        <div class="vk-insp-store"><span><b id="selStorage">-</b> used</span><span><b id="selStorageFree">-</b> free of <span id="selQuota">-</span></span></div>
+                    </div>
+
+                    <dl class="vk-insp-kv">
+                        <div><dt>Plan</dt><dd id="selPlan">-</dd></div>
+                        <div><dt>Apps</dt><dd id="selApps">-</dd></div>
+                        <div><dt>Files</dt><dd id="selFiles">-</dd></div>
+                        <div><dt>Admin</dt><dd id="selAdmin">-</dd></div>
+                        <div><dt>Client since</dt><dd id="selSince">-</dd></div>
+                    </dl>
+
+                    <form method="post" action="/admin/plan" class="vk-insp-section" id="planForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="tenantId" id="planTenant" />
+                        <div class="vk-insp-label">Change plan</div>
+                        <modern-dropdown-with-label id="selPlanPick" name="planId" label="New plan" placeholder="Pick a plan" items="planItems" border-radius="12"></modern-dropdown-with-label>
+                        <button type="submit" class="vk-btn vk-btn-grad vk-block"><i class="fa fa-check" aria-hidden="true"></i> Apply plan</button>
+                        <span class="vk-insp-note">Licenses stay as they are; storage and the price become the new plan's.</span>
+                    </form>
+
+                    <div class="vk-insp-foot">
+                        <button type="button" class="vk-btn vk-btn-light vk-block" data-cmd="editClient"><i class="fa fa-pencil" aria-hidden="true"></i> Edit client</button>
+                        <button type="button" class="vk-btn vk-btn-light vk-block" data-cmd="emailAdmin"><i class="fa fa-envelope" aria-hidden="true"></i> <span id="selMailText">Email admin link</span></button>
+                        <button type="button" class="vk-btn vk-btn-light vk-block" data-cmd="toggleClient" id="selToggle"><i class="fa fa-pause-circle" aria-hidden="true"></i> <span>Pause client</span></button>
+                        <button type="button" class="vk-btn vk-btn-light vk-block vk-danger-btn" data-cmd="deleteClient" id="selDelete"><i class="fa fa-trash" aria-hidden="true"></i> Delete client</button>
+                        <span class="vk-insp-note" id="selDeleteNote">Pause the client before deleting it.</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    @* ---- payments: rules, money per month, who paid, every payment ---- *@
+    <section class="vk-pane" data-pane="payments" hidden>
+        <div class="vk-pay-top">
+            <form method="post" action="/admin/billing" class="vk-pay-rules vk-glass-card" id="rulesForm">
+                @Html.AntiForgeryToken()
+                <h3 class="vk-card-title"><i class="fa fa-calendar-check-o" aria-hidden="true"></i> Payment <span>rules</span></h3>
+                <modern-dropdown-with-label id="ruleDueDay" name="dueDay" label="Payment is due on" placeholder="Pick a day" required="true"
+                                            value="@rules.DueDay.ToString(inv)" items="dueDayItems" menu-height="240px" border-radius="12"></modern-dropdown-with-label>
+                <modern-input id="ruleGrace" name="graceDays" label="Days a late client keeps working (after the due day)" mandatory="true" input-type="int" max-length="3"
+                              value="@rules.GraceDays.ToString(inv)" placeholder="30" label-font-size="13.5px"></modern-input>
+                <modern-checkbox id="ruleAutoBlock" name="autoBlock" label="Block automatically" is-toggle-button="true" checked="@rules.AutoBlock" label-font-size="13.5px"
+                                 desc-text="When those days are over, nobody of that client can sign in until you record the payment or let them in again."></modern-checkbox>
+                <p class="vk-group-note"><i class="fa fa-info-circle"></i> Each client pays licenses × its plan's price, every month.
+                    Clients on a free plan (price 0) are never billed or blocked.</p>
+                <button type="submit" class="vk-btn vk-btn-grad"><i class="fa fa-floppy-o" aria-hidden="true"></i> Save rules</button>
+            </form>
+            <div class="vk-pay-chart vk-glass-card">
+                <h3 class="vk-card-title"><i class="fa fa-bar-chart" aria-hidden="true"></i> Money, <span>last 6 months</span></h3>
+                <div class="vk-pay-sum">
+                    <span><small>Billed in @Money.Month(thisMonth)</small><b>@Money.Rupees(expected)</b></span>
+                    <span><small>Received</small><b class="ok">@Money.Rupees(received)</b></span>
+                    <span><small>Still to come (all months)</small><b class="warn">@Money.Rupees(billing.Outstanding)</b></span>
+                </div>
+                <modern-column-chart id="moneyChart" labels="months.Select(Money.Month)" series="chartSeries" chart-height="230px"
+                                     show-border="false" legend-position="top" legend-font-size="12" show-legend-box="false"></modern-column-chart>
+            </div>
+        </div>
+
+        <div class="vk-pay-grids">
+            <modern-table id="billGrid" name="SelectedBill"
+                          grid-name="@($"Who has paid · {Money.Month(thisMonth)}")" icon="check-square-o" icon-background-color="#DDF3EA" icon-color="#0E5A43"
+                          searchable="true" search-placeholder="Search clients..." show-filter-button="true" column-toggle="true"
+                          selectable="true" enable-paging="true" page-size="10" row-height="50px" header-height="44px" row-font-size="13.5px"
+                          row-id-field="Id" table-height="340px" items="billRows">
+                <column field="Id" header="Id" visible="false" filterable="false" sortable="false"></column>
+                <column field="Name" header="Client" width="180px"></column>
+                <column field="Plan" header="Plan" type="badge" width="110px" badge-default-color="#EEF0FB">
+                    <badge value="Business" color="#E3E5FB"></badge>
+                    <badge value="Enterprise" color="#FBE3EF"></badge>
+                </column>
+                <column field="Monthly" header="Monthly bill" width="120px" cell-align="right" header-align="right" format="₹C0"></column>
+                <column field="Bill" header="Payment" type="badge" width="120px">
+                    <badge value="Paid" color="#DDF3EA"></badge>
+                    <badge value="Due" color="#E3E5FB"></badge>
+                    <badge value="Overdue" color="#FFE9C7"></badge>
+                    <badge value="On hold" color="#FBE3EF"></badge>
+                    <badge value="Blocked" color="#FDD9CD"></badge>
+                    <badge value="Not started" color="#EEF0F6"></badge>
+                </column>
+                <column field="ThisMonth" header="Paid this month" width="130px" cell-align="right" header-align="right" format="₹C0"></column>
+                <column field="Outstanding" header="Unpaid" width="110px" cell-align="right" header-align="right" format="₹C0"></column>
+                <column field="Unpaid" header="Unpaid months" width="170px"></column>
+                <column field="DueOn" header="Due on" width="110px" format="dd-mm-yyyy"></column>
+                <column field="BlocksOn" header="Blocks on" width="110px" format="dd-mm-yyyy"></column>
+                <column field="LastPaid" header="Last paid" width="110px" format="dd-mm-yyyy" visible="false"></column>
+            </modern-table>
+
+            <modern-table id="payGrid" name="SelectedPayment"
+                          grid-name="Money received" icon="inr" icon-background-color="#E3E5FB" icon-color="#2B2F86"
+                          searchable="true" search-placeholder="Search payments..." show-filter-button="true" column-toggle="true"
+                          selectable="true" enable-paging="true" page-size="10" row-height="50px" header-height="44px" row-font-size="13.5px"
+                          row-id-field="Id" table-height="380px" items="payRows">
+                <column field="Id" header="Id" visible="false" filterable="false" sortable="false"></column>
+                <column field="PaidOn" header="Paid on" width="110px" format="dd-mm-yyyy"></column>
+                <column field="Client" header="Client" width="170px"></column>
+                <column field="Month" header="For" width="100px"></column>
+                <column field="Amount" header="Amount" width="120px" cell-align="right" header-align="right" format="₹C0"></column>
+                <column field="Method" header="How" type="badge" width="120px" badge-default-color="#EEF0F6">
+                    <badge value="Bank transfer" color="#E3E5FB"></badge>
+                    <badge value="UPI" color="#DDF3EA"></badge>
+                    <badge value="Cheque" color="#FFF0D4"></badge>
+                    <badge value="Cash" color="#FBE3EF"></badge>
+                    <badge value="Card" color="#E0F4F4"></badge>
+                </column>
+                <column field="Reference" header="Reference" width="130px"></column>
+                <column field="Note" header="Note" width="180px" visible="false"></column>
+                <column field="By" header="Noted by" width="150px" visible="false"></column>
+            </modern-table>
+        </div>
+    </section>
+
+    @* ---- plans: one card per plan ---- *@
+    <section class="vk-pane" data-pane="plans" hidden>
+        <div class="vk-plan-grid">
+            @foreach (var p in plans)
+            {
+                var count = clients.Count(c => c.PlanId == p.PlanId);
+                var tone = p.Name.ToLowerInvariant() switch { "business" => "blue", "enterprise" => "pink", _ => "slate" };
+                <form method="post" action="/admin/plans/@p.PlanId" class="vk-plan-card vk-glass-card tone-@tone">
+                    @Html.AntiForgeryToken()
+                    <div class="vk-plan-title"><span class="vk-plan-dot"></span><b>@p.Name</b> <span>plan</span></div>
+                    <div class="vk-plan-sum">
+                        <span class="vk-plan-count">@count @(count == 1 ? "client" : "clients")</span>
+                        <span>@p.MaxUsers users · @Sizes.Bytes(p.StorageQuotaMb * 1048576) · @(p.PricePerUser == 0 ? "free" : $"{Money.Rupees(p.PricePerUser)} per user a month")</span>
+                    </div>
+                    <div class="vk-plan-label">Capacity</div>
+                    <div class="vk-form-2">
+                        <modern-input id="@($"pUsers{p.PlanId}")" name="MaxUsers" label="Licenses (users)" input-type="int" value="@p.MaxUsers.ToString(inv)" mandatory="true" label-font-size="13.5px"></modern-input>
+                        <modern-input id="@($"pStore{p.PlanId}")" name="StorageQuotaMb" label="Storage (MB)" input-type="int" value="@p.StorageQuotaMb.ToString(inv)" mandatory="true" label-font-size="13.5px"></modern-input>
+                    </div>
+                    <div class="vk-plan-label">Price</div>
+                    <div class="vk-form-2">
+                        <modern-input id="@($"pPrice{p.PlanId}")" name="PricePerUser" label="₹ per user a month (0 = free)" input-type="currency" value="@p.PricePerUser.ToString("0.##", inv)" label-font-size="13.5px"></modern-input>
+                        <div class="vk-plan-quota-note"><i class="fa fa-info-circle"></i> @(p.PricePerUser == 0 ? "Free: clients on this plan are never billed or blocked." : $"A client with 10 licenses pays {Money.Rupees(10 * p.PricePerUser)} a month.")</div>
+                    </div>
+                    <div class="vk-plan-label">Apps in this plan</div>
+                    <vk-app-picker name="apps" value="@((int)p.Apps)" id-prefix="@($"plan{p.PlanId}")" />
+                    <div class="vk-plan-foot">
+                        <span>Changes apply to @count @(count == 1 ? "client" : "clients") straight away.</span>
+                        <button type="submit" class="vk-btn vk-btn-grad vk-btn-sm"><i class="fa fa-floppy-o" aria-hidden="true"></i> Save</button>
+                    </div>
+                </form>
             }
         </div>
-    </div>
-    <div class="glass-soft vk-card">
-        <h2><i class="fa fa-hdd-o"></i> Where files are saved</h2>
-        <p class="vk-muted">The <b>content</b> of every file is a file on the server, in the folder set in <code>Storage:RootPath</code>.
-        The database table <code>Vaikunth_Documents</code> keeps only the list: file name, who created it and when, who updated it and when, and whether it is deleted.</p>
-        <p class="vk-where-root"><i class="fa fa-folder-open-o"></i> <code>@Files.Root</code></p>
-        <ul class="vk-where">
-            <li><img src="/_content/Vaikunth.UI/images/app-pages.svg" width="26" height="26" alt="" /><span><b>Akshara Pages (Word)</b><small><code>{client}/Pages/{file}.json</code> · the page (HTML) and page size</small></span></li>
-            <li><img src="/_content/Vaikunth.UI/images/app-workbook.svg" width="26" height="26" alt="" /><span><b>Hrishikesha Workbook (Excel)</b><small><code>{client}/Workbook/{file}.json</code> · sheets, cells, formulas, formats</small></span></li>
-            <li><img src="/_content/Vaikunth.UI/images/app-slides.svg" width="26" height="26" alt="" /><span><b>Vishwaroopa Slides (PowerPoint)</b><small><code>{client}/Slides/{file}.json</code> · theme, slides, boxes, pictures, notes</small></span></li>
-        </ul>
-        <p class="vk-muted small">People, passwords and profile photos stay in the database. Each file's size is added to the client's storage used; a save is refused when the client's quota is full.</p>
-        @if (Model.MockMode)
-        {
-            <p class="vk-mock-note"><i class="fa fa-flask"></i> Mock mode: there is no database yet, so clients, people and the list of files are kept in memory until the app restarts. File contents are still written to the folder above.</p>
-        }
-    </div>
-</section>
+        <div class="vk-where-card vk-glass-card">
+            <span class="vk-kpi-ic tone-slate"><i class="fa fa-folder-open-o"></i></span>
+            <div>
+                <b>Where the files are saved</b>
+                <p class="vk-muted">Every document, deck, workbook, PDF and project is a file on the server in <code>@Files.Root</code>
+                    (<code>{client}/Pages|Slides|Workbook|Reader|Planner/{file}.json</code>). The database keeps only the list: name, who created and updated it, the dates and whether it is deleted.
+                    @if (Model.MockMode) { <br /><i class="fa fa-flask"></i> <text>Sample-data mode: clients, people and payments are kept in memory until the site restarts.</text> }</p>
+            </div>
+        </div>
+    </section>
+</div>
 
-<vk-dialog id="newClient" title="New client" icon="building-o" ok-text="Create client" action="/admin/create" width="620px">
+@* hidden form the toolbar uses for Pause / Resume and Email admin link *@
+<form method="post" id="actForm" hidden>
     @Html.AntiForgeryToken()
-    <div class="vk-form-2">
-        <vk-input id="Name" label="Company name" icon="building-o" mandatory="true" placeholder="Acme Corp" max-length="120" />
-        <vk-input id="Slug" label="Short name" icon="link" mandatory="true" placeholder="acme" max-length="39" />
-    </div>
-    <vk-select id="PlanId" label="Plan" icon="tags" options="@planOptions" selected="@firstPlan.ToString()" />
-    <vk-app-picker name="apps" value="7" label="Apps for this client" id-prefix="new" />
-    <div class="vk-form-sep">First admin of this client</div>
-    <div class="vk-form-2">
-        <vk-input id="AdminName" label="Name" icon="user-o" mandatory="true" placeholder="Priya Sharma" />
-        <vk-input id="AdminEmail" label="Email" icon="envelope-o" mandatory="true" placeholder="admin@acme.com" input-type="email" />
-    </div>
-    <div class="vk-choice">
-        <label class="vk-choice-opt"><input type="radio" name="SendInvite" value="true" checked />
-            <span><b><i class="fa fa-envelope-o"></i> Email a link to set their password</b><small>Recommended. They choose their own password; the link lasts 7 days.</small></span></label>
-        <label class="vk-choice-opt"><input type="radio" name="SendInvite" value="false" />
-            <span><b><i class="fa fa-key"></i> I'll set a temporary password</b><small>You pass it on yourself. They can change it with Forgot password.</small></span></label>
-    </div>
-    <div id="tempPassword" hidden>
-        <vk-input id="AdminPassword" label="Temporary password" is-password="true" placeholder="At least 8 characters" />
-    </div>
+    <input type="hidden" name="tenantId" id="actTenant" /><input type="hidden" name="name" id="actName" /><input type="hidden" name="isActive" id="actActive" />
+</form>
+
+@* ---- New client ---- *@
+<vk-dialog id="newClient" title="New client workspace" subtitle="We email the client admin a link to set their own password."
+           icon="building-o" ok-text="Create workspace" ok-icon="check" cancel-text="Cancel" action="/admin/create" width="660px">
+    @Html.AntiForgeryToken()
+    @if (reopenNew && error is not null) { <p class="vk-form-error" data-open-on-load>@error</p> }
+    <vk-group title="Company|details">
+        <modern-input id="Name" name="Name" label="Company name" mandatory="true" placeholder="Acme Corp" max-length="120" label-font-size="13.5px"></modern-input>
+        <div class="vk-form-2">
+            <modern-input id="Slug" name="Slug" label="Short name" mandatory="true" placeholder="acme" max-length="39" label-font-size="13.5px"></modern-input>
+            <modern-dropdown-with-label id="PlanId" name="PlanId" label="Plan" required="true" value="@firstPlan.ToString(inv)" items="planItems" border-radius="12"></modern-dropdown-with-label>
+        </div>
+        <div class="vk-form-2">
+            <modern-input id="Licenses" name="Licenses" label="Licenses (number of users)" mandatory="true" input-type="int" label-font-size="13.5px"
+                          value="@(plans.FirstOrDefault(p => p.PlanId == firstPlan)?.MaxUsers.ToString(inv) ?? "10")"></modern-input>
+            <p class="vk-group-note" id="newBillNote">Each person uses one license, the admin too. The monthly bill is licenses × the plan's price; billing starts next month.</p>
+        </div>
+        <p class="vk-group-note">Short name: small letters, numbers or hyphens · it names the client's folder on the server.</p>
+        <vk-app-picker name="apps" value="@((int)SuiteAppFlags.All)" label="Apps for this client" id-prefix="new" />
+    </vk-group>
+    <vk-group title="Client|admin">
+        <div class="vk-form-2">
+            <modern-input id="AdminName" name="AdminName" label="Admin name" mandatory="true" placeholder="Priya Sharma" max-length="120" label-font-size="13.5px"></modern-input>
+            <modern-input id="AdminEmail" name="AdminEmail" label="Admin email" mandatory="true" placeholder="admin@acme.com" max-length="200" label-font-size="13.5px"></modern-input>
+        </div>
+        <input type="hidden" name="SendInvite" id="SendInvite" value="true" />
+        <modern-checkbox id="SendInviteToggle" name="_sendInviteToggle" label="Email the admin a set-password link" is-toggle-button="true" checked="true" label-font-size="13.5px"
+                         desc-text="They open the link, choose their own password, then sign in and add their office. The link works once and lasts 7 days."></modern-checkbox>
+        <div id="tempPassword" hidden>
+            <modern-input id="AdminPassword" name="AdminPassword" label="Temporary password" is-password="true" placeholder="At least 8 characters" label-font-size="13.5px"></modern-input>
+            <p class="vk-group-note">Share it with the admin yourself. They can change it later with Forgot password.</p>
+        </div>
+    </vk-group>
 </vk-dialog>
 
-<vk-dialog id="editClient" title="Edit client" icon="pencil" ok-text="Save changes" action="/admin/update" width="620px">
+@* ---- Edit client ---- *@
+<vk-dialog id="editClient" title="Edit client" subtitle="Name, plan, licenses, storage, apps, billing and status." icon="pencil"
+           ok-text="Save changes" ok-icon="check" cancel-text="Cancel" action="/admin/update" width="660px">
     @Html.AntiForgeryToken()
     <input type="hidden" name="TenantId" id="EditTenantId" />
-    <vk-input id="EditName" name="Name" label="Company name" icon="building-o" mandatory="true" />
-    <vk-select id="EditPlanId" name="PlanId" label="Plan" icon="tags" options="@planOptions" />
-    <div class="vk-form-2">
-        <vk-input id="EditMaxUsers" name="MaxUsersOverride" label="User limit (blank = plan's)" icon="users" input-type="number" />
-        <vk-input id="EditStorage" name="StorageQuotaMbOverride" label="Storage in MB (blank = plan's)" icon="database" input-type="number" />
+    <vk-group title="Company|details">
+        <modern-input id="EditName" name="Name" label="Company name" mandatory="true" max-length="120" label-font-size="13.5px"></modern-input>
+        <modern-dropdown-with-label id="EditPlanId" name="PlanId" label="Plan" required="true" items="planItems" border-radius="12"></modern-dropdown-with-label>
+    </vk-group>
+    <vk-group title="Limits|for this client">
+        <div class="vk-form-2">
+            <modern-input id="EditMaxUsers" name="MaxUsersOverride" label="Licenses (blank = plan's)" input-type="int" label-font-size="13.5px"></modern-input>
+            <modern-input id="EditStorage" name="StorageQuotaMbOverride" label="Storage in MB (blank = plan's)" input-type="int" label-font-size="13.5px"></modern-input>
+        </div>
+        <vk-app-picker name="apps" value="@((int)SuiteAppFlags.All)" label="Apps for this client" id-prefix="edit" />
+    </vk-group>
+    <vk-group title="Billing|and status">
+        <div class="vk-form-2">
+            <modern-month-year-picker id="EditBillingMonth" name="billingMonth" label="Pays from (month)" placeholder="mm-yyyy"></modern-month-year-picker>
+            <p class="vk-group-note" id="editBillNote">-</p>
+        </div>
+        <modern-checkbox id="EditActive" name="IsActive" label="Active" is-toggle-button="true" checked="true" label-font-size="13.5px"
+                         desc-text="People of this client can sign in. Off = paused; nothing is deleted."></modern-checkbox>
+    </vk-group>
+</vk-dialog>
+
+@* ---- Delete client: type the short name to confirm ---- *@
+<vk-dialog id="deleteClient" title="Delete client" subtitle="This can't be undone." icon="trash"
+           ok-text="Delete forever" ok-icon="trash" ok-tone="danger" ok-id="delSubmit" cancel-text="Cancel" action="/admin/delete" width="520px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="tenantId" id="delTenant" />
+    <div class="vk-danger-box">
+        <strong>Deleting <span id="delName">this client</span> removes for good:</strong>
+        <ul>
+            <li><span id="delUsers">All</span> people, their sign-ins and profile photos</li>
+            <li>All their documents, decks, workbooks, PDFs and projects (<span id="delFiles">-</span> files, <span id="delStorage">-</span>) from the server</li>
+            <li>The list of files, shares and stars, and its payments, in the database</li>
+        </ul>
+        <span>Want to keep the data? Leave the client paused instead.</span>
     </div>
-    <vk-app-picker name="apps" value="7" label="Apps for this client" id-prefix="edit" />
-    <vk-checkbox id="EditActive" name="IsActive" label="Active (people can sign in)" is-toggle="true" checked="true" />
+    <modern-input id="delConfirm" name="confirmSlug" label="Type the short name to confirm" mandatory="true" max-length="40" label-font-size="13.5px"></modern-input>
+    <p class="vk-group-note">Type <b id="delSlug">-</b> exactly.</p>
+</vk-dialog>
+
+@* ---- Record payment ---- *@
+<vk-dialog id="paymentDialog" title="Record payment" subtitle="Note money a client has paid. It counts towards the month you pick."
+           icon="inr" ok-text="Record payment" ok-icon="check" cancel-text="Cancel" action="/admin/payments" width="640px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="tab" id="payTab" value="clients" />
+    <vk-group title="Who|paid">
+        <modern-dropdown-with-label id="payClient" name="tenantId" label="Client" placeholder="Pick the client" required="true" items="payClientItems" menu-height="220px" border-radius="12"></modern-dropdown-with-label>
+        <div class="vk-pay-hint" id="payHint" hidden></div>
+    </vk-group>
+    <vk-group title="The|money">
+        <div class="vk-form-2">
+            <modern-month-year-picker id="payPeriod" name="period" label="For the month of" required="true" value="@MonthPick(thisMonth)"></modern-month-year-picker>
+            <modern-input id="payAmount" name="amount" label="Amount received (₹)" mandatory="true" input-type="currency" placeholder="0" label-font-size="13.5px"></modern-input>
+        </div>
+        <div class="vk-form-2">
+            <modern-datepicker-with-label id="payPaidOn" name="paidOn" label="Paid on" required="true" value="@today.ToString("dd-MM-yyyy", inv)"></modern-datepicker-with-label>
+            <modern-input id="payRef" name="reference" label="Reference" placeholder="UTR, cheque or receipt number" max-length="100" label-font-size="13.5px"></modern-input>
+        </div>
+        <modern-radio-group id="payMethod" name="method" label="How they paid" options="methodOptions" selected-value="Bank transfer" label-font-size="13.5px"></modern-radio-group>
+        <modern-input id="payNote" name="note" label="Note" multiline="true" rows="2" max-length="500" placeholder="Anything to remember (optional)" label-font-size="13.5px"></modern-input>
+    </vk-group>
+</vk-dialog>
+
+@* ---- Let in again ---- *@
+<vk-dialog id="holdDialog" title="Let in again" subtitle="The client can sign in until the day you pick, even with unpaid months." icon="unlock-alt"
+           ok-text="Let them in" ok-icon="unlock" cancel-text="Cancel" action="/admin/hold" width="520px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="tenantId" id="holdTenant" />
+    <input type="hidden" name="tab" id="holdTab" value="clients" />
+    <div class="vk-kv vk-hold-box">
+        <b id="holdName">-</b>
+        <span id="holdLine">-</span>
+    </div>
+    <modern-datepicker-with-label id="holdUntil" name="until" label="Let them in until" required="true" value="@today.AddDays(7).ToString("dd-MM-yyyy", inv)"></modern-datepicker-with-label>
+    <p class="vk-group-note">After that day the normal rule applies again: if it is still unpaid, the client is blocked. Recording the payment ends the hold too.</p>
+    <button type="submit" name="clear" value="true" class="vk-link-btn" id="holdClear" formnovalidate hidden><i class="fa fa-times"></i> Take the hold off now</button>
+</vk-dialog>
+
+@* ---- Delete payment ---- *@
+<vk-dialog id="deletePayment" title="Delete payment" subtitle="Only if it was noted by mistake." icon="times-circle"
+           ok-text="Delete payment" ok-icon="trash" ok-tone="danger" cancel-text="Cancel" action="/admin/payments/delete" width="480px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="paymentId" id="delPayId" />
+    <div class="vk-danger-box"><strong id="delPayText">-</strong><span>That month counts as unpaid again, so the client may show as late.</span></div>
 </vk-dialog>
 
 @section Scripts {
+    <script src="~/_content/Vaikunth.UI/js/admin.js" asp-append-version="true"></script>
     <script>
-        // fill the Edit dialog from the row's data-* and open it
-        document.addEventListener("click", function (e) {
-            var b = e.target.closest("[data-edit-client]"); if (!b) return;
-            var d = b.dataset;
-            document.getElementById("EditTenantId").value = d.id;
-            document.getElementById("EditName").value = d.name;
-            document.getElementById("EditPlanId").value = d.plan;
-            document.getElementById("EditMaxUsers").value = "";
-            document.getElementById("EditMaxUsers").placeholder = "Now " + d.maxusers;
-            document.getElementById("EditStorage").value = "";
-            document.getElementById("EditStorage").placeholder = "Now " + d.storagemb + " MB";
-            document.getElementById("EditActive").checked = d.active === "true";
-            ["pages", "workbook", "slides"].forEach(function (k, i) { document.getElementById("edit-" + k).checked = (+d.apps & (1 << i)) !== 0; });
-            document.getElementById("editClient").showModal();
+        VKAdmin.init({
+            perPlan: @Html.Raw(JsonSerializer.Serialize(plans.ToDictionary(p => p.PlanId.ToString(), p => new { users = p.MaxUsers, price = p.PricePerUser, name = p.Name }))),
+            appNames: @Html.Raw(JsonSerializer.Serialize(SuiteApps.All.Select(a => new { flag = (int)a.App.Flag(), name = a.Kind }))),
+            selected: @Html.Raw(JsonSerializer.Serialize(Model.Selected)),
+            thisMonth: "@MonthPick(thisMonth)",
+            graceDays: @rules.GraceDays,
+            autoBlock: @(rules.AutoBlock ? "true" : "false")
         });
-        // temporary password box only when that option is picked
-        document.querySelectorAll('input[name="SendInvite"]').forEach(function (r) {
-            r.addEventListener("change", function () { document.getElementById("tempPassword").hidden = r.value === "true" && r.checked; });
-        });
-        // short name follows the company name until you type in it
-        (function () {
-            var name = document.getElementById("Name"), slug = document.getElementById("Slug"), touched = false;
-            slug.addEventListener("input", function () { touched = true; });
-            name.addEventListener("input", function () {
-                if (!touched) slug.value = name.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 39);
-            });
-        })();
     </script>
 }

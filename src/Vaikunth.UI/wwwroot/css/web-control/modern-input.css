@@ -1,0 +1,256 @@
+/* =========================================================
+   MODERN INPUT
+   Colors/spacing come from controls-theme.css — load that file first.
+   ========================================================= */
+
+.modern-input-wrapper {
+    width: 100%;
+    font-family: var(--ctrl-font);
+}
+
+.mi-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px; /* default — overridden inline when Label-FontSize is set */
+    font-weight: 700; /* default — overridden inline when Label-FontWeight is set */
+    color: var(--ctrl-accent-dark);
+}
+
+/* ---- Mandatory asterisk — same weight as the label, slightly larger
+   so it reads as bolder/more prominent without changing font-weight ---- */
+.mi-required {
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 1.15em; /* CHANGED — bumped up from inherited 1em so the * stands out */
+    line-height: 1;
+    vertical-align: middle;
+    position: relative;
+    top: -0.15em; /* CHANGED — nudges the * up a touch, closer to a superscript */
+    display: inline-block;
+}
+
+/* ---- Suffix label — red, sits right after the main label on the same
+   line. Font-size/weight are set inline per-instance (Suffix-FontSize /
+   Suffix-FontWeight); visibility is controlled by the mi-suffix-hidden
+   class, toggled from the SuffixVisible property. ---- */
+.mi-suffix-label {
+    color: #dc2626;
+    font-size: 12px; /* default — overridden inline when Suffix-FontSize is set */
+    font-weight: 500; /* default — overridden inline when Suffix-FontWeight is set */
+    margin-left: 6px;
+}
+
+    .mi-suffix-label.mi-suffix-hidden {
+        display: none;
+    }
+
+.mi-input-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.mi-icon-left {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ctrl-text-faint);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+}
+
+.mi-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 40px 0 42px;
+    border: 1px solid var(--ctrl-border); /* CHANGED — was 1.5px solid transparent; now matches datepicker's border */
+    border-radius: 999px;
+    background: var(--ctrl-bg); /* CHANGED — was var(--ctrl-bg-soft); now white, matching datepicker */
+    font-size: 14px;
+    font-family: var(--ctrl-font);
+    color: var(--ctrl-text);
+    outline: none;
+    box-sizing: border-box;
+    transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+    .mi-input::placeholder {
+        color: var(--ctrl-text-faint);
+        font-style: italic;
+    }
+
+    .mi-input:focus {
+        border-color: var(--ctrl-accent);
+        box-shadow: 0 0 0 4px var(--ctrl-accent-ring); /* CHANGED — was 3px, now matches datepicker's 4px ring exactly */
+    }
+
+.mi-icon-error {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+}
+
+    /* Note: no red border/glow on invalid state by design — the small red
+   icon alone indicates a mandatory empty field; the input's border stays
+   the normal color. */
+
+    /* ---- Tooltip on the mandatory icon (shown via tooltip-text="...") ---- */
+    .mi-icon-error[data-tooltip] {
+        cursor: help;
+    }
+
+        .mi-icon-error[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 130%;
+            right: 0;
+            background: var(--ctrl-text);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: var(--ctrl-radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            box-shadow: var(--ctrl-shadow-md);
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .mi-icon-error[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: 118%;
+            right: 6px;
+            border: 5px solid transparent;
+            border-top-color: var(--ctrl-text);
+            z-index: 20;
+            pointer-events: none;
+        }
+
+/* ---- Multiline (textarea) variant ---- */
+.mi-textarea {
+    height: auto;
+    min-height: 100px;
+    border-radius: var(--ctrl-radius-md); /* less extreme than the pill shape — looks odd on a tall multi-row box */
+    padding: 14px 40px 14px 42px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.mi-input-wrap.mi-multiline .mi-icon-left,
+.mi-input-wrap.mi-multiline .mi-icon-error {
+    top: 16px; /* anchor near the top instead of perfectly centered — looks right regardless of textarea height */
+    transform: none;
+}
+
+.mi-input-wrap.mi-no-resize .mi-textarea {
+    resize: none;
+}
+
+/* ---- Clear ("x") button — shares the exact same position/size as the
+   mandatory-error icon (.mi-icon-error) so the two can swap in place as
+   the user types, without any layout shift. Present on every modern-input,
+   not just password fields. JS shows at most one of the two at a time. ---- */
+.mi-clear-btn {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    color: var(--ctrl-text-faint);
+    line-height: 0;
+}
+
+    .mi-clear-btn:hover {
+        color: var(--ctrl-text);
+    }
+
+.mi-input-wrap.mi-multiline .mi-clear-btn {
+    top: 16px; /* match the same top-anchored positioning as .mi-icon-error in multiline */
+    transform: none;
+}
+
+/* Note: the base .mi-input rule above already reserves 40px on the right
+   for this shared error/clear slot — no extra rule needed for non-password
+   fields. Password fields override it below with room for two buttons. */
+
+/* ---- Password mode ----
+   Same pill input, key icon on the left (handled via leftIconHtml in the
+   TagHelper). Right side holds the clear ("x") button — same shared slot
+   used everywhere else — plus a show/hide "eye" toggle further right,
+   laid out side by side inside .mi-pw-actions. ---- */
+.mi-input-wrap.mi-password .mi-input {
+    padding-right: 68px; /* room for two icon buttons instead of one */
+}
+
+.mi-pw-actions {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+    /* Inside .mi-pw-actions the clear button is laid out in flow (not
+   absolutely positioned) so it sits directly left of the eye toggle. */
+    .mi-pw-actions .mi-clear-btn {
+        position: static;
+        transform: none;
+    }
+
+.mi-pw-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    line-height: 0;
+    color: var(--ctrl-accent);
+}
+
+    .mi-pw-toggle:hover {
+        color: var(--ctrl-accent-dark);
+    }
+
+/* ---- Disabled state, matching the pattern used by your other controls ---- */
+.mi-input:disabled {
+    background: var(--ctrl-bg-disabled, #f3f4f6);
+    color: var(--ctrl-text-disabled);
+    cursor: not-allowed;
+}
+
+/* Read-only — value stays fully readable (unlike disabled), just a subtle
+   background tint to hint it can't be edited. Uses the native :read-only
+   pseudo-class, so no extra wrapper class is needed. */
+.mi-input:read-only {
+    background: var(--ctrl-bg-soft);
+    cursor: default;
+}
+
+    .mi-input:read-only:focus {
+        box-shadow: none; /* no focus ring — nothing to "enter" here */
+    }
+
+/* Read-only / disabled field: no clear ("x") button, so the user cannot wipe a value
+   the page filled in (also when JS makes the field read-only later). */
+.mi-input-wrap:has(.mi-input[readonly]) .mi-clear-btn,
+.mi-input-wrap:has(.mi-input:disabled) .mi-clear-btn {
+    display: none !important;
+}

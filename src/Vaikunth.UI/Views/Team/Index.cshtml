@@ -23,7 +23,7 @@
 @if (c is not null)
 {
     <section class="vk-stats vk-stats-3">
-        <vk-stat-card icon="users" label="People" value="@($"{c.ActiveUsers} of {c.MaxUsers}")" sub="@($"{c.PlanName} plan")" tone="navy" />
+        <vk-stat-card icon="id-card-o" label="Licenses used" value="@($"{c.ActiveUsers} of {c.MaxUsers}")" sub="@($"{Math.Max(0, c.MaxUsers - c.ActiveUsers)} free · {c.PlanName} plan")" tone="navy" />
         <vk-stat-card icon="envelope-o" label="Waiting to join" value="@(ViewData["InvitedCount"]?.ToString())" sub="invited, no password yet" tone="gold" />
         <vk-stat-card icon="database" label="Storage" value="@Sizes.Bytes(c.StorageUsedBytes)" sub="@($"of {Sizes.Bytes(c.StorageQuotaBytes)}")" tone="green" />
     </section>
@@ -40,7 +40,7 @@
     </div>
     <div class="vk-table-scroll">
     <table class="vk-files vk-clients">
-        <thead><tr><th>Person</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Added</th><th></th></tr></thead>
+        <thead><tr><th>Person</th><th>Department</th><th>Joined</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Added</th><th></th></tr></thead>
         <tbody>
         @foreach (var p in Model.People)
         {
@@ -52,6 +52,8 @@
                         <span><b>@p.DisplayName @(me ? "(you)" : "")</b><small>@p.Email</small></span>
                     </div>
                 </td>
+                <td><span class="vk-cell-2"><b>@(p.Department ?? "—")</b><small>@p.JobTitle</small></span></td>
+                <td class="vk-muted">@(p.JoiningDate?.ToString("d MMM yyyy") ?? "—")</td>
                 <td>
                     @if (me)
                     {
@@ -73,6 +75,9 @@
                 <td class="vk-muted">@(p.LastLoginUtc is DateTime l ? UserExtensions.Ago(l) : "Never")</td>
                 <td class="vk-muted">@UserExtensions.Ago(p.CreatedUtc)@(p.InvitedByName is null ? "" : $" by {p.InvitedByName}")</td>
                 <td class="vk-row-actions">
+                    <button type="button" class="vk-btn vk-btn-light vk-btn-sm" data-edit-person title="Change name, department, job title or joining date"
+                            data-id="@p.UserId" data-name="@p.DisplayName" data-email="@p.Email" data-dept="@p.Department" data-job="@p.JobTitle"
+                            data-joined="@(p.JoiningDate?.ToString("yyyy-MM-dd"))"><i class="fa fa-pencil"></i> Edit</button>
                     @if (p.IsActive)
                     {
                         <form method="post" action="/team/resend" class="vk-inline-form">
@@ -98,7 +103,7 @@
         }
         @if (Model.People.Count == 0)
         {
-            <tr><td colspan="6" class="vk-empty">Nobody here. Use Add people to invite your office.</td></tr>
+            <tr><td colspan="8" class="vk-empty">Nobody here. Use Add people to invite your office.</td></tr>
         }
         </tbody>
     </table>
@@ -110,5 +115,39 @@
     <vk-input id="displayName" label="Name" icon="user-o" mandatory="true" placeholder="Meera Iyer" max-length="120" />
     <vk-input id="email" label="Work email" icon="envelope-o" mandatory="true" placeholder="meera@yourcompany.com" input-type="email" max-length="200" />
     <vk-select id="role" label="Role" icon="id-badge" options="Member|Member · uses the apps,TenantAdmin|Admin · can also add and manage people" selected="Member" />
+    <div class="vk-form-2">
+        <vk-input id="department" label="Department" icon="sitemap" placeholder="Sales" max-length="80" />
+        <vk-input id="jobTitle" label="Job title" icon="briefcase" placeholder="Accountant" max-length="80" />
+    </div>
+    <vk-input id="joiningDate" label="Joining date" icon="calendar" input-type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
     <p class="vk-dialog-note"><i class="fa fa-envelope-o"></i> They'll get an email with a link to set their password. The link works once and lasts 7 days.</p>
 </vk-dialog>
+
+<vk-dialog id="personDialog" title="Edit person" icon="pencil" ok-text="Save" action="/team/details" width="520px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="userId" id="personId" />
+    <p class="vk-dialog-note" id="personEmail"></p>
+    <vk-input id="personName" name="displayName" label="Name" icon="user-o" mandatory="true" max-length="120" />
+    <div class="vk-form-2">
+        <vk-input id="personDept" name="department" label="Department" icon="sitemap" max-length="80" />
+        <vk-input id="personJob" name="jobTitle" label="Job title" icon="briefcase" max-length="80" />
+    </div>
+    <vk-input id="personJoined" name="joiningDate" label="Joining date" icon="calendar" input-type="date" />
+</vk-dialog>
+
+@section Scripts {
+    <script>
+        // fill the Edit person window from the row and open it
+        document.addEventListener("click", function (e) {
+            var b = e.target.closest("[data-edit-person]"); if (!b) return;
+            var d = b.dataset;
+            document.getElementById("personId").value = d.id;
+            document.getElementById("personEmail").textContent = d.email;
+            document.getElementById("personName").value = d.name || "";
+            document.getElementById("personDept").value = d.dept || "";
+            document.getElementById("personJob").value = d.job || "";
+            document.getElementById("personJoined").value = d.joined || "";
+            document.getElementById("personDialog").showModal();
+        });
+    </script>
+}

@@ -15,7 +15,12 @@
     <!-- Plain ADO.NET for SQL Server / Azure SQL stored procedures. No Entity Framework. -->
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.2" />
     <!-- Email over SMTP: port 465 (SSL on connect) and 587 (STARTTLS). -->
-    <PackageReference Include="MailKit" Version="4.18.2" />
+    <PackageReference Include="MailKit" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- sample PDF for Shashvata Reader in sample-data (mock) mode -->
+    <EmbeddedResource Include="Mock\Samples\team-handbook.pdf" LogicalName="Vaikunth.Samples.team-handbook.pdf" />
   </ItemGroup>
 
   <ItemGroup>

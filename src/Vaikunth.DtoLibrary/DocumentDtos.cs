@@ -89,3 +89,68 @@ public sealed class SlideBoxDto
     public string? Fill { get; set; }
     public string? Role { get; set; }
 }
+
+/// <summary>Shashvata Reader: one PDF (kept as base64 inside the file on the server) with the reader's notes and bookmarks.</summary>
+public sealed class ReaderContent
+{
+    /// <summary>The original file name, e.g. "Annual report.pdf".</summary>
+    public string? FileName { get; set; }
+    /// <summary>The PDF itself, base64. Null until a PDF is opened into this file.</summary>
+    public string? Pdf { get; set; }
+    public long SizeBytes { get; set; }
+    public int Pages { get; set; }
+    /// <summary>Where the reader left off.</summary>
+    public int LastPage { get; set; } = 1;
+    public int Zoom { get; set; } = 100;
+    public List<int> Bookmarks { get; set; } = new();
+    public List<ReaderNoteDto> Notes { get; set; } = new();
+}
+
+public sealed class ReaderNoteDto
+{
+    public string Id { get; set; } = "";
+    public int Page { get; set; } = 1;
+    public string Text { get; set; } = "";
+    /// <summary>gold | green | blue | pink</summary>
+    public string Color { get; set; } = "gold";
+    public string? By { get; set; }
+    public DateTime? At { get; set; }
+}
+
+/// <summary>Dhruva Planner: one project with its tasks (board, list and timeline are views of the same tasks).</summary>
+public sealed class PlannerContent
+{
+    public string Description { get; set; } = "";
+    public DateOnly? Start { get; set; }
+    public DateOnly? End { get; set; }
+    /// <summary>The board's columns, in order. Each task's Status is one of their keys.</summary>
+    public List<PlannerColumnDto> Columns { get; set; } = PlannerColumnDto.Defaults();
+    public List<PlannerTaskDto> Tasks { get; set; } = new();
+}
+
+public sealed class PlannerColumnDto
+{
+    public string Key { get; set; } = "";
+    public string Name { get; set; } = "";
+    public static List<PlannerColumnDto> Defaults() =>
+    [
+        new() { Key = "todo", Name = "To do" }, new() { Key = "doing", Name = "In progress" },
+        new() { Key = "review", Name = "Review" }, new() { Key = "done", Name = "Done" }
+    ];
+}
+
+public sealed class PlannerTaskDto
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Status { get; set; } = "todo";
+    /// <summary>low | medium | high</summary>
+    public string Priority { get; set; } = "medium";
+    public string Owner { get; set; } = "";
+    public DateOnly? Start { get; set; }
+    public DateOnly? Due { get; set; }
+    /// <summary>0 to 100.</summary>
+    public int Progress { get; set; }
+    public bool Milestone { get; set; }
+    public string Notes { get; set; } = "";
+}

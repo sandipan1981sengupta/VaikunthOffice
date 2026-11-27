@@ -1,0 +1,27 @@
+/* Akshara Pages · the page and its look */
+.pg-work { overflow: auto; background: #E9EBF3; }
+.pg-ruler { position: sticky; top: 0; z-index: 2; height: 22px; background: #F7F8FB; border-bottom: 1px solid #E1E3EC; display: flex; justify-content: center; }
+.pg-ruler span { width: calc(794px * var(--z, 1)); background: repeating-linear-gradient(90deg, #C9CCDA 0 1px, transparent 1px 37.8px) bottom / 100% 8px no-repeat, #fff; border-left: 72px solid #EEF0F6; border-right: 72px solid #EEF0F6; }
+.pg-canvas { padding: 28px 20px 60px; display: flex; justify-content: center; }
+.pg-page { width: 794px; min-height: 1123px; padding: 86px 96px; background: #fff; box-shadow: 0 1px 3px rgba(20,22,52,.12), 0 10px 30px -12px rgba(20,22,52,.25); outline: none;
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif; font-size: 15px; line-height: 1.65; color: #1F2238; transform-origin: top center; }
+.pg-page.letter { width: 816px; min-height: 1056px; }
+.pg-page.narrow { padding: 48px 48px; }
+.pg-page.wide { padding: 96px 144px; }
+.pg-page h1 { font-size: 30px; line-height: 1.2; color: #1E2060; margin: 0 0 6px; letter-spacing: -.01em; }
+.pg-page h2 { font-size: 20px; color: #1E2060; margin: 22px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #E8B04B; display: inline-block; }
+.pg-page p { margin: 0 0 10px; }
+.pg-page blockquote { margin: 14px 0; padding: 10px 16px; border-left: 4px solid #E8B04B; background: #FBF6EA; color: #1E2060; font-style: italic; border-radius: 0 10px 10px 0; }
+.pg-page table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+.pg-page th, .pg-page td { border: 1px solid #D3D6E4; padding: 7px 10px; text-align: left; }
+.pg-page th { background: #E8E9F7; color: #1E2060; }
+.pg-page a { color: #14A3A0; text-decoration: underline; }
+.pg-page img { max-width: 100%; }
+.pg-page hr { border: 0; border-top: 1px solid #D3D6E4; margin: 18px 0; }
+.pg-page mark.pg-find { background: #FDE68A; }
+.pg-styles { display: grid; grid-template-columns: repeat(2, auto); gap: 3px; }
+.pg-style { height: 28px; padding: 0 10px; border: 1px solid #E3E5EE !important; border-radius: 7px; background: #fff; font-size: 12.5px; }
+.pg-style.h1 { color: #1E2060; font-weight: 700; }
+.pg-style.h2 { color: #1E2060; font-weight: 600; border-bottom: 2px solid #E8B04B !important; }
+.pg-style.q { font-style: italic; border-left: 3px solid #E8B04B !important; }
+.pg-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

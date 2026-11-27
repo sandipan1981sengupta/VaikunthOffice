@@ -64,7 +64,7 @@ public sealed class SmtpEmailSender : IAppEmailSender
             var socket = !_o.EnableSsl ? SecureSocketOptions.None : _o.Port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
             await client.ConnectAsync(_o.Host, _o.Port, socket);
             if (!string.IsNullOrWhiteSpace(_o.UserName)) await client.AuthenticateAsync(_o.UserName, _o.Password);
-            await client.SendAsync(message);
+            await client.SendAsync(new MailKit.SendRequest(message));   // MailKit 5: messages are sent as a SendRequest
             await client.DisconnectAsync(true);
             _log.LogInformation("Email \"{Subject}\" sent to {To}.", subject, to);
             return true;

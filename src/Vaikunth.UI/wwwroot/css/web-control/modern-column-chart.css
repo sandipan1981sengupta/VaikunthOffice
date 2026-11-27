@@ -1,0 +1,112 @@
+/* =========================================================
+   MODERN COLUMN CHART (vertical bars)
+   Colors/spacing come from controls-theme.css — load that file first.
+   ========================================================= */
+
+.modern-chart-wrapper {
+    height: 100%; /* ADDED — lets chart-height="100%" resolve correctly */
+    width: 100%;
+    background: var(--ctrl-bg);
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-lg);
+    box-shadow: var(--ctrl-shadow-sm);
+    padding: 20px;
+    font-family: var(--ctrl-font);
+    box-sizing: border-box;
+}
+
+    .modern-chart-wrapper.mc-no-border {
+        border: none;
+        box-shadow: none;
+    }
+
+.mc-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ctrl-accent-dark);
+    margin-bottom: 16px;
+}
+
+.mc-canvas-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.mc-chart-body {
+    height: 100%; /* ADDED — same reason, keeps the percentage chain unbroken */
+    display: flex;
+    gap: 20px;
+}
+
+    .mc-chart-body .mc-canvas-wrap {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .mc-chart-body.mc-legend-top,
+    .mc-chart-body.mc-legend-bottom {
+        flex-direction: column;
+    }
+
+    .mc-chart-body.mc-legend-top {
+        flex-direction: column-reverse;
+    }
+
+    .mc-chart-body.mc-legend-left {
+        flex-direction: row-reverse;
+    }
+
+    .mc-chart-body.mc-legend-right {
+        flex-direction: row;
+    }
+
+.mc-legend-box {
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-md);
+    background: var(--ctrl-bg-soft);
+    padding: 14px 18px;
+    box-shadow: var(--ctrl-shadow-sm);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--mc-legend-gap, 16px);
+    align-content: flex-start;
+    box-sizing: border-box;
+}
+
+    .mc-legend-box.mc-legend-plain {
+        border: none;
+        background: none;
+        box-shadow: none;
+        padding: 0;
+    }
+
+.mc-legend-top .mc-legend-box,
+.mc-legend-bottom .mc-legend-box {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.mc-legend-left .mc-legend-box,
+.mc-legend-right .mc-legend-box {
+    flex-direction: column;
+    flex-shrink: 0;
+    min-width: 140px;
+    align-self: flex-start;
+}
+
+.mc-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--mc-legend-font-size, 14px);
+    font-weight: var(--mc-legend-font-weight, 700);
+    color: var(--ctrl-text);
+    white-space: nowrap;
+}
+
+.mc-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}

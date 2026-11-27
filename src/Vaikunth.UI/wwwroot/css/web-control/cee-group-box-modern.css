@@ -1,0 +1,111 @@
+/* =========================================================
+   CEE Group Box — Modern edition
+   Configurable via CSS custom properties, set inline per
+   instance (the TagHelper sets these for you).
+
+   --gb-border-color         hairline border / divider color
+   --gb-radius                corner radius of the outer box
+   --gb-header-bg              header strip background
+   --gb-header-color           title text color (primary part)
+   --gb-header-accent-color    title text color (accent part, after "|")
+   --gb-content-bg             body/content area background
+   --gb-min-height              min-height of the content area
+   --gb-accent                  top accent bar color/gradient
+   ========================================================= */
+
+.cee-group-box {
+    --gb-border-color: #c9c9c9;
+    --gb-radius: 16px;
+    --gb-header-bg: #ffffff;
+    --gb-header-color: #2563eb;
+    --gb-header-accent-color: rgba(240, 0, 188, 1);
+    --gb-content-bg: #fafafa;
+    --gb-min-height: auto;
+    --gb-accent: linear-gradient(90deg, #2563eb, #a3298f);
+    position: relative;
+    border: 1px solid var(--gb-border-color);
+    border-radius: var(--gb-radius);
+    overflow: hidden;
+    margin: 15px 0 20px 15px;
+    width: calc(100% - 30px);
+    background-color: var(--gb-content-bg);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.06);
+    transition: box-shadow 180ms ease;
+}
+
+    .cee-group-box:hover {
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px rgba(16, 24, 40, 0.08);
+    }
+
+/* Header strip */
+.cee-group-header {
+    background-color: var(--gb-header-bg);
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--gb-border-color);
+}
+
+.cee-group-title {
+    font-family: Roboto, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    margin: 0;
+    color: var(--gb-header-color);
+}
+
+    .cee-group-title .part-primary {
+        color: var(--gb-header-color);
+    }
+
+    .cee-group-title .part-accent {
+        color: var(--gb-header-accent-color);
+    }
+
+    /* Gradient title text. Applied when --gb-header-gradient is set (i.e. the
+   TagHelper's header-text-gradient attribute is used). A plain "color"
+   property can't take a gradient, so this fills the text using the
+   background-clip:text trick instead.
+   !important is used deliberately here: this is a one-off visual override
+   driven by a per-instance attribute, and host-app styles (resets, heading
+   rules, Bootstrap etc.) targeting p/.cee-group-title by element or class
+   selector must not be able to silently re-color this text back to solid. */
+    .cee-group-title.gradient-text {
+        background: var(--gb-header-gradient) !important;
+        -webkit-background-clip: text !important;
+        background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        color: transparent !important;
+    }
+
+        .cee-group-title.gradient-text .part-primary,
+        .cee-group-title.gradient-text .part-accent {
+            background: var(--gb-header-gradient) !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            color: transparent !important;
+        }
+
+/* Content area — where caller's own controls go.
+   NOTE: background-color and min-height MUST use the CSS vars,
+   not be hardcoded, or per-instance overrides (content-bg-color,
+   min-height attrs on the TagHelper) will silently do nothing. */
+.cee-group-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 30px 24px;
+    background-color: #fafafa;
+    min-height: var(--gb-min-height);
+}
+
+    /* Content area layout variants — required for content-layout="stretch" / "block" to work */
+    .cee-group-content.align-stretch {
+        align-items: stretch;
+    }
+
+    .cee-group-content.layout-block {
+        display: block;
+    }
+

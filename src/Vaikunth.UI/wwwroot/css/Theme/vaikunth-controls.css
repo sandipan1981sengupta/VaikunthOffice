@@ -1,0 +1,120 @@
+/* Vaikunth Office · colours for the ShankhNaad (Template 1) controls: modern-input, modern-dropdown-with-label,
+   modern-datepicker-with-label, modern-month-year-picker, modern-table, modern-radio-group, modern-checkbox, charts.
+   Loaded after css/Theme/controls-theme.css and css/web-control/*.css. Light and Dark (html[data-theme]). */
+
+:root {
+    --ctrl-accent: #2B2F86;
+    --ctrl-accent-dark: #1E2060;
+    --ctrl-accent-light: #9AA2F2;
+    --ctrl-accent-soft: rgba(43, 47, 134, .07);
+    --ctrl-accent-tint: rgba(43, 47, 134, .11);
+    --ctrl-accent-ring: rgba(43, 47, 134, .14);
+    --ctrl-accent-ring-strong: rgba(43, 47, 134, .18);
+    --ctrl-accent-shadow: rgba(43, 47, 134, .28);
+    --ctrl-accent-gradient: linear-gradient(110deg, #2B2F86 0%, #14A3A0 100%);
+    --ctrl-text: #141634;
+    --ctrl-text-soft: #2B2E4A;
+    --ctrl-text-muted: #5F6383;
+    --ctrl-border: rgba(30, 32, 96, .2);
+    --ctrl-border-hover: rgba(43, 47, 134, .45);
+    --ctrl-font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    --app-gradient: linear-gradient(110deg, #2B2F86 0%, #14A3A0 48%, #E08A2E 100%);
+    --app-gradient-hover: linear-gradient(110deg, #1E2060 0%, #0F8784 48%, #C24A1C 100%);
+    --grid-selection: linear-gradient(110deg, #2B2F86 0%, #1F6C9A 60%, #14A3A0 100%);
+    --grid-selection-hover: linear-gradient(110deg, #1E2060 0%, #1A5F88 60%, #0F8784 100%);
+    --success-color: #0E5A43; --success-background-color: #DDF3EA;
+    --warning-color: #8A4B06; --warning-background-color: #FFF0D4;
+    --danger-color: #9A3412; --danger-background-color: #FDE3DA;
+}
+
+/* ---------- labels: Vaikunth size, not ShankhNaad's 16px ---------- */
+.vk-ws-body .mi-label, .vk-ws-body .ddwl-label, .vk-ws-body .mdpwl-label, .vk-ws-body .myp-label, .vk-ws-body .mr-group-label {
+    font-size: 13.5px !important; font-weight: 600 !important; color: var(--vk-ink);
+}
+.vk-ws-body .modern-input-wrapper, .vk-ws-body .modern-dropdown-with-label-wrapper, .vk-ws-body .mdpwl-outer, .vk-ws-body .myp-outer { margin-bottom: 0; }
+
+/* ---------- modern-table in Vaikunth glass ---------- */
+.vk-ws-body .modern-table-wrapper {
+    background: var(--ws-card); backdrop-filter: blur(22px) saturate(170%); -webkit-backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid var(--ws-edge); box-shadow: inset 0 1px 0 var(--ws-shine), var(--ws-shadow); border-radius: 22px; min-height: 320px;
+}
+.vk-ws-body .mt-toolbar { background: transparent; border-bottom: 1px solid var(--ws-line); }
+.vk-ws-body .mt-title-text { color: var(--vk-ink); }
+.vk-ws-body .mt-thead th { background: rgba(255, 255, 255, .3); color: var(--vk-text-2); border-bottom-color: var(--ws-line); }
+.vk-ws-body .mt-thead th:hover { background: rgba(255, 255, 255, .5); }
+.vk-ws-body .mt-filter-row th { background: rgba(255, 255, 255, .22); }
+.vk-ws-body .mt-tbody td { border-bottom-color: var(--ws-line); color: var(--vk-text); }
+.vk-ws-body .mt-tbody td:first-child { color: var(--vk-ink); font-weight: 600; }
+.vk-ws-body .mt-tbody tr:not(.mt-row-selected):hover { background: var(--ws-hover); }
+.vk-ws-body .mt-footer { background: transparent; color: var(--vk-text-2); border-top: 1px solid var(--ws-line); }
+.vk-ws-body .mt-col-panel, .vk-ws-body .mt-toolbar-dd .dd-menu { background: rgba(255, 255, 255, .95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+.vk-ws-body .mt-tbody tr.vk-row-paused td { color: var(--vk-text-2); }
+.vk-ws-body .mt-tbody tr.mt-row-selected td { color: #fff; }
+.vk-ws-body .mt-tbody tr.vk-row-late td:first-child { box-shadow: inset 3px 0 0 #E08A2E; }
+.vk-ws-body .mt-tbody tr.vk-row-blocked td:first-child { box-shadow: inset 3px 0 0 #C24A1C; }
+
+/* ---------- fields ---------- */
+.vk-ws-body .mi-input, .vk-ws-body .ddwl-toggle, .vk-ws-body .mdpwl-input, .vk-ws-body .myp-input, .vk-ws-body .mt-search, .vk-ws-body .mt-filter-input {
+    background: rgba(255, 255, 255, .72); border-color: var(--ctrl-border);
+}
+.vk-ws-body .mi-input:focus, .vk-ws-body .mdpwl-input:focus, .vk-ws-body .myp-input:focus { background: #fff; }
+.vk-ws-body .ddwl-menu, .flatpickr-calendar { background: rgba(255, 255, 255, .97); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+.vk-dialog .flatpickr-wrapper { display: block; width: 100%; }
+.vk-dialog .ddwl-menu { z-index: 30; }
+.vk-ws-body .modern-chart-wrapper { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+.vk-form-2 > .modern-input-wrapper, .vk-form-2 > .modern-dropdown-with-label-wrapper, .vk-form-2 > .mdpwl-outer, .vk-form-2 > .myp-outer { min-width: 0; }
+
+/* ================= Dark ================= */
+html[data-theme=dark] {
+    --ctrl-text: #EEF0FF; --ctrl-text-soft: #D5D8F0; --ctrl-text-muted: #9DA2C8; --ctrl-text-faint: #6E7398; --ctrl-text-disabled: #4B4F72;
+    --ctrl-border: rgba(170, 176, 230, .24); --ctrl-border-hover: rgba(169, 174, 255, .5); --ctrl-border-light: rgba(255, 255, 255, .06);
+    --ctrl-bg: rgba(20, 22, 48, .8); --ctrl-bg-soft: rgba(255, 255, 255, .03); --ctrl-bg-hover: rgba(255, 255, 255, .06);
+    --ctrl-accent: #A9AEFF; --ctrl-accent-dark: #C9CCFF; --ctrl-accent-light: #2B2F86;
+    --ctrl-accent-soft: rgba(169, 174, 255, .1); --ctrl-accent-tint: rgba(169, 174, 255, .16); --ctrl-accent-ring: rgba(169, 174, 255, .22);
+    --ctrl-scrollbar-thumb: #34386A;
+    --success-color: #6FD8AE; --success-background-color: rgba(34, 163, 122, .18);
+    --warning-color: #F2C56E; --warning-background-color: rgba(245, 166, 35, .16);
+    --danger-color: #FF9B8A; --danger-background-color: rgba(194, 74, 28, .2);
+}
+html[data-theme=dark] .vk-ws-body .mi-input, html[data-theme=dark] .vk-ws-body .ddwl-toggle, html[data-theme=dark] .vk-ws-body .mdpwl-input,
+html[data-theme=dark] .vk-ws-body .myp-input, html[data-theme=dark] .vk-ws-body .mt-search, html[data-theme=dark] .vk-ws-body .mt-filter-input {
+    background: rgba(20, 22, 48, .8) !important; border-color: rgba(170, 176, 230, .24) !important; color: #EEF0FF; box-shadow: none;
+}
+html[data-theme=dark] .vk-ws-body .mi-input:focus, html[data-theme=dark] .vk-ws-body .mdpwl-input:focus, html[data-theme=dark] .vk-ws-body .myp-input:focus {
+    background: #12142E !important; border-color: #A9AEFF !important; box-shadow: 0 0 0 4px rgba(169, 174, 255, .18) !important;
+}
+html[data-theme=dark] .vk-ws-body .ddwl-menu, html[data-theme=dark] .vk-ws-body .mt-col-panel, html[data-theme=dark] .vk-ws-body .mt-toolbar-dd .dd-menu,
+html[data-theme=dark] .flatpickr-calendar {
+    background: #171A3A !important; border-color: rgba(255, 255, 255, .1) !important; box-shadow: 0 24px 50px -16px rgba(0, 0, 0, .7) !important;
+}
+html[data-theme=dark] .vk-ws-body .ddwl-option { color: #D5D8F0; }
+html[data-theme=dark] .vk-ws-body .ddwl-option:hover, html[data-theme=dark] .vk-ws-body .ddwl-option.ddwl-active { background: rgba(255, 255, 255, .06); }
+html[data-theme=dark] .vk-ws-body .ddwl-option.selected { background: rgba(169, 174, 255, .16); color: #C9CCFF; }
+html[data-theme=dark] .flatpickr-day, html[data-theme=dark] .flatpickr-weekday, html[data-theme=dark] .flatpickr-current-month,
+html[data-theme=dark] .flatpickr-monthSelect-month { color: #D5D8F0 !important; }
+html[data-theme=dark] .flatpickr-day:hover, html[data-theme=dark] .flatpickr-monthSelect-month:hover { background: rgba(255, 255, 255, .06) !important; border-color: transparent !important; }
+html[data-theme=dark] .flatpickr-day.flatpickr-disabled, html[data-theme=dark] .flatpickr-day.prevMonthDay, html[data-theme=dark] .flatpickr-day.nextMonthDay { color: #4B4F72 !important; }
+html[data-theme=dark] .flatpickr-months .flatpickr-prev-month svg, html[data-theme=dark] .flatpickr-months .flatpickr-next-month svg { fill: #D5D8F0 !important; }
+html[data-theme=dark] .flatpickr-months .flatpickr-month, html[data-theme=dark] .flatpickr-current-month input.cur-year { color: #EEF0FF !important; fill: #EEF0FF !important; }
+html[data-theme=dark] .vk-ws-body .mr-indicator { background: rgba(20, 22, 48, .8) !important; border-color: rgba(170, 176, 230, .4) !important; }
+html[data-theme=dark] .vk-ws-body .mr-cbx input[type="radio"]:checked ~ .mr-indicator { background: #12142E !important; border-color: #A9AEFF !important; }
+
+html[data-theme=dark] .vk-ws-body .modern-table-wrapper { background: rgba(28, 31, 66, .6); border-color: rgba(255, 255, 255, .08); }
+html[data-theme=dark] .vk-ws-body .mt-thead th { background: rgba(255, 255, 255, .03); color: #9DA2C8; }
+html[data-theme=dark] .vk-ws-body .mt-thead th:hover { background: rgba(255, 255, 255, .06); }
+html[data-theme=dark] .vk-ws-body .mt-filter-row th { background: rgba(255, 255, 255, .02); }
+html[data-theme=dark] .vk-ws-body .mt-tbody td { color: #D5D8F0; }
+html[data-theme=dark] .vk-ws-body .mt-tbody td:first-child { color: #C9CCFF; }
+html[data-theme=dark] .vk-ws-body .mt-tbody tr.mt-row-selected td { color: #fff !important; }
+html[data-theme=dark] .vk-ws-body .mt-badge, html[data-theme=dark] .vk-ws-body .mt-tbody .badge { filter: brightness(.9) saturate(1.1); }
+html[data-theme=dark] .vk-ws-body .mt-col-toggle-btn, html[data-theme=dark] .vk-ws-body .mt-filter-toggle-btn, html[data-theme=dark] .vk-ws-body .mt-page-btn:not(.mt-page-active) {
+    background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .12); color: #D5D8F0;
+}
+html[data-theme=dark] .vk-ws-body .mc-label-text, html[data-theme=dark] .vk-ws-body .mr-label-text, html[data-theme=dark] .vk-ws-body .mc-desc { color: #D5D8F0; }
+
+/* radios: an empty ring until picked, then the Vaikunth gradient with a white dot (clearer than a filled dot for "not picked") */
+.vk-ws-body .mr-indicator { background: rgba(255, 255, 255, .85); border: 1.5px solid rgba(30, 32, 96, .3); }
+.vk-ws-body .mr-cbx input[type="radio"]:checked ~ .mr-indicator { background: linear-gradient(110deg, #2B2F86 0%, #14A3A0 100%); border-color: transparent; box-shadow: 0 4px 10px rgba(43, 47, 134, .3); }
+.vk-ws-body .mr-cbx input[type="radio"]:checked ~ .mr-indicator .mr-dot { background: #fff; }
+.vk-ws-body .mr-option-text { font-size: 14px; }
+html[data-theme=dark] .vk-ws-body .mr-cbx input[type="radio"]:checked ~ .mr-indicator { background: linear-gradient(110deg, #6E76FF 0%, #14A3A0 100%) !important; border-color: transparent !important; }

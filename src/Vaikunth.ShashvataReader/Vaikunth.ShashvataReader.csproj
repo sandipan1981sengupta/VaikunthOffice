@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Shashvata Reader (PDFs): its reader (controller, view, JS and CSS) as a library. It runs inside Vaikunth.Office.Web
+       at /reader, in its own browser tab. PDFs are drawn in the browser with pdf.js 3.11.174 (wwwroot/lib/pdfjs, Apache-2.0).
+       Sign-in, launcher, tag helpers and layouts come from Vaikunth.UI; all data access is in Vaikunth.ServiceLibrary.
+       Its wwwroot is served at /_content/Vaikunth.ShashvataReader/... -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Vaikunth.ShashvataReader</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vaikunth.DtoLibrary\Vaikunth.DtoLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.ServiceLibrary\Vaikunth.ServiceLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.UI\Vaikunth.UI.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,120 @@
+@model DocumentDto
+@{
+    Layout = "_EditorLayout";   // full-window editor frame from Vaikunth.UI
+    ViewData["Title"] = Model.Title;
+}
+@section Styles { <link rel="stylesheet" href="~/_content/Vaikunth.AksharaPages/css/pages.css" asp-append-version="true" /> }
+
+<vk-app-bar app="pages" doc-title="@Model.Title" user-name="@User.DisplayName()" avatar-tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
+
+<vk-ribbon>
+    <vk-ribbon-tab title="Home" active="true">
+        <vk-ribbon-group label="Clipboard">
+            <vk-ribbon-btn cmd="paste" icon="clipboard" text="Paste" size="large" />
+            <vk-ribbon-btn cmd="cut" icon="scissors" tooltip="Cut (Ctrl+X)" />
+            <vk-ribbon-btn cmd="copy" icon="copy" tooltip="Copy (Ctrl+C)" />
+            <vk-ribbon-btn cmd="removeFormat" icon="eraser" tooltip="Clear formatting" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Font">
+            <vk-ribbon-select cmd="fontName" options="Inter,Georgia,Times New Roman,Arial,Courier New,Verdana" width="138" tooltip="Font" />
+            <vk-ribbon-select cmd="fontSize" options="1|8,2|10,3|12,4|14,5|18,6|24,7|36" selected="3" width="62" tooltip="Font size" />
+            <vk-ribbon-btn cmd="bold" icon="bold" tooltip="Bold (Ctrl+B)" toggle="true" />
+            <vk-ribbon-btn cmd="italic" icon="italic" tooltip="Italic (Ctrl+I)" toggle="true" />
+            <vk-ribbon-btn cmd="underline" icon="underline" tooltip="Underline (Ctrl+U)" toggle="true" />
+            <vk-ribbon-btn cmd="strikeThrough" icon="strikethrough" tooltip="Strikethrough" toggle="true" />
+            <vk-ribbon-btn cmd="subscript" icon="subscript" tooltip="Subscript" toggle="true" />
+            <vk-ribbon-btn cmd="superscript" icon="superscript" tooltip="Superscript" toggle="true" />
+            <vk-ribbon-color cmd="foreColor" icon="font" value="#C24A1C" tooltip="Font colour" />
+            <vk-ribbon-color cmd="hiliteColor" icon="pencil" value="#FDE68A" tooltip="Highlight" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Paragraph">
+            <vk-ribbon-btn cmd="insertUnorderedList" icon="list-ul" tooltip="Bullets" toggle="true" />
+            <vk-ribbon-btn cmd="insertOrderedList" icon="list-ol" tooltip="Numbering" toggle="true" />
+            <vk-ribbon-btn cmd="outdent" icon="outdent" tooltip="Decrease indent" />
+            <vk-ribbon-btn cmd="indent" icon="indent" tooltip="Increase indent" />
+            <vk-ribbon-sep />
+            <vk-ribbon-btn cmd="justifyLeft" icon="align-left" tooltip="Align left" toggle="true" />
+            <vk-ribbon-btn cmd="justifyCenter" icon="align-center" tooltip="Centre" toggle="true" />
+            <vk-ribbon-btn cmd="justifyRight" icon="align-right" tooltip="Align right" toggle="true" />
+            <vk-ribbon-btn cmd="justifyFull" icon="align-justify" tooltip="Justify" toggle="true" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Styles">
+            <div class="pg-styles">
+                <button type="button" class="vk-rb pg-style" data-cmd="formatBlock" data-arg="P">Normal</button>
+                <button type="button" class="vk-rb pg-style h1" data-cmd="formatBlock" data-arg="H1">Heading 1</button>
+                <button type="button" class="vk-rb pg-style h2" data-cmd="formatBlock" data-arg="H2">Heading 2</button>
+                <button type="button" class="vk-rb pg-style q" data-cmd="formatBlock" data-arg="BLOCKQUOTE">Quote</button>
+            </div>
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Editing">
+            <vk-ribbon-btn cmd="find" icon="search" text="Find" />
+            <vk-ribbon-btn cmd="undo" icon="undo" tooltip="Undo (Ctrl+Z)" />
+            <vk-ribbon-btn cmd="redo" icon="repeat" tooltip="Redo (Ctrl+Y)" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Insert">
+        <vk-ribbon-group label="Tables">
+            <vk-ribbon-btn cmd="insertTable" icon="table" text="Table" size="large" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Illustrations">
+            <vk-ribbon-btn cmd="insertImage" icon="picture-o" text="Picture" size="large" />
+            <vk-ribbon-btn cmd="insertHr" icon="minus" text="Line" size="large" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Links">
+            <vk-ribbon-btn cmd="insertLink" icon="link" text="Link" size="large" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Text">
+            <vk-ribbon-btn cmd="insertDate" icon="calendar" text="Date" size="large" />
+            <vk-ribbon-btn cmd="insertVerse" icon="sun-o" text="Verse" size="large" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Layout">
+        <vk-ribbon-group label="Page setup">
+            <vk-ribbon-select cmd="pageSize" options="A4|A4 (21 × 29.7 cm),Letter|Letter (8.5 × 11 in)" width="170" />
+            <vk-ribbon-select cmd="margins" options="normal|Normal margins,narrow|Narrow margins,wide|Wide margins" width="150" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="Review">
+        <vk-ribbon-group label="Proofing">
+            <vk-ribbon-btn cmd="spell" icon="check-square-o" text="Spelling" size="large" />
+            <vk-ribbon-btn cmd="wordCount" icon="sort-numeric-asc" text="Word count" size="large" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="View">
+        <vk-ribbon-group label="Zoom">
+            <vk-ribbon-btn cmd="zoomOut" icon="search-minus" text="Zoom out" />
+            <vk-ribbon-btn cmd="zoomIn" icon="search-plus" text="Zoom in" />
+            <vk-ribbon-btn cmd="zoom100" icon="arrows-alt" text="100%" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+</vk-ribbon>
+
+<div class="vk-work pg-work" id="work">
+    <div class="pg-ruler" aria-hidden="true"><span></span></div>
+    <div class="pg-canvas" id="canvas">
+        <article class="pg-page" id="page" contenteditable="true" spellcheck="true"></article>
+    </div>
+</div>
+
+<vk-status-bar>
+    <span>Page <b id="pageNo">1</b> of <b id="pageCount">1</b></span>
+    <span id="wordCount">0 words</span>
+    <span id="charCount">0 characters</span>
+    <span><i class="fa fa-language"></i> English (India)</span>
+</vk-status-bar>
+
+<vk-dialog id="tableDialog" title="Insert table" icon="table" ok-text="Insert" ok-cmd="insertTableOk" width="340px">
+    <div class="pg-two">
+        <vk-input id="tblRows" label="Rows" input-type="number" value="3" />
+        <vk-input id="tblCols" label="Columns" input-type="number" value="3" />
+    </div>
+</vk-dialog>
+<vk-dialog id="linkDialog" title="Insert link" icon="link" ok-text="Insert" ok-cmd="insertLinkOk">
+    <vk-input id="linkUrl" label="Address" icon="globe" placeholder="https://" />
+</vk-dialog>
+
+@section Scripts {
+    <script id="docData" type="application/json">@Html.Raw(Model.Content.Replace("</", "<\\/"))</script>
+    <script>VK.docId = "@Model.DocumentId";</script>
+    <script src="~/_content/Vaikunth.AksharaPages/js/pages.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,36 @@
+@model ForgotViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Forgot password";
+}
+<partial name="~/Views/Account/_AuthHero.cshtml" />
+
+<div class="vk-window-wrap">
+    <div class="vk-window-orbs" aria-hidden="true"><span class="w1"></span><span class="w2"></span><span class="w3"></span></div>
+    <form method="post" action="/account/forgot" class="vk-window glass" novalidate>
+        <div class="vk-window-top">
+            <div>
+                <div class="vk-eyebrow">Forgot password</div>
+                <h2>Reset your password</h2>
+                <p class="vk-window-sub">We'll email you a link to choose a new one.</p>
+            </div>
+            <span class="vk-lock"><i class="fa fa-key" aria-hidden="true"></i></span>
+        </div>
+        @Html.AntiForgeryToken()
+        @if (Model.Sent)
+        {
+            <div class="vk-banner ok"><i class="fa fa-envelope-o"></i> If <b>&nbsp;@Model.Email&nbsp;</b> has a Vaikunth Office account, a reset link is on its way. It works for 2 hours.</div>
+            <a class="vk-btn vk-btn-grad vk-signin" href="/account/login?email=@Uri.EscapeDataString(Model.Email)">Back to sign in <i class="fa fa-arrow-right"></i></a>
+        }
+        else
+        {
+            <div asp-validation-summary="ModelOnly" class="vk-form-error" role="alert"></div>
+            <div>
+                <vk-input id="Email" label="Work email" icon="envelope-o" mandatory="true" placeholder="you@company.com" value="@Model.Email" autofocus="true" autocomplete="username" />
+                <span asp-validation-for="Email" class="vk-field-error"></span>
+            </div>
+            <button type="submit" class="vk-btn vk-btn-grad vk-signin">Email me a reset link <i class="fa fa-paper-plane"></i></button>
+            <p class="vk-small-center"><a class="vk-link" href="/account/login">Back to sign in</a></p>
+        }
+    </form>
+</div>

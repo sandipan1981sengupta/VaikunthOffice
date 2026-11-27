@@ -27,8 +27,14 @@ public static class ServiceRegistration
         services.Configure<StorageOptions>(config.GetSection("Storage"));
         services.AddSingleton<IDocumentFileStore, DocumentFileStore>();
 
+        // billing: who is paid, late or blocked (BillingDesk), checked every hour by BillingSweepService
+        services.AddSingleton<TenantGate>();
+        services.AddScoped<BillingDesk>();
+        services.AddHostedService<BillingSweepService>();
+
         if (UsesMockData(config))
         {
+            services.AddSingleton<IBillingService, MockBillingService>();
             services.AddSingleton<IPasswordLinkService, MockPasswordLinkService>();
             services.AddSingleton<IUserService, MockUserService>();
             services.AddSingleton<IDocumentService, MockDocumentService>();
@@ -43,6 +49,7 @@ public static class ServiceRegistration
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPasswordLinkService, PasswordLinkService>();
         services.AddScoped<IUserPhotoService, UserPhotoService>();
+        services.AddScoped<IBillingService, BillingService>();
         return services;
     }
 }

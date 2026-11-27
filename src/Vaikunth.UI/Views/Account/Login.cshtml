@@ -48,9 +48,9 @@
 
         <button type="submit" class="vk-btn vk-btn-grad vk-signin">Sign in <i class="fa fa-arrow-right" aria-hidden="true"></i></button>
 
-        <div class="vk-divider"><span></span><i class="fa fa-shield" aria-hidden="true"></i> One sign-in for all three apps<span></span></div>
+        <div class="vk-divider"><span></span><i class="fa fa-shield" aria-hidden="true"></i> One sign-in for all five apps<span></span></div>
         <div class="vk-login-apps" aria-hidden="true">
-            <vk-app-icon app="pages" size="30" /><vk-app-icon app="workbook" size="30" /><vk-app-icon app="slides" size="30" />
+            @foreach (var a in SuiteApps.All) { <vk-app-icon app="@a.Key" size="30" /> }
         </div>
         @if (Model.MockMode)
         {

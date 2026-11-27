@@ -46,6 +46,7 @@
                     <div class="vk-menu-who"><b>@User.DisplayName()</b><small>@User.Identity?.Name</small><small>@(User.IsSuperAdmin() ? "Super admin" : User.TenantName())</small></div>
                     @if (User.IsSuperAdmin()) { <a class="vk-menu-link" href="/admin"><i class="fa fa-building-o"></i> Clients</a> }
                     @if (User.IsInRole(AppRoles.TenantAdmin)) { <a class="vk-menu-link" href="/team"><i class="fa fa-users"></i> People</a> }
+                    <button type="button" data-open-dialog="accountDialog"><i class="fa fa-user-circle-o"></i> My account</button>
                     <button type="button" data-open-dialog="photoDialog"><i class="fa fa-camera"></i> Profile photo</button>
                     <button type="button" data-open-dialog="aboutDialog"><i class="fa fa-info-circle"></i> About Vaikunth Office</button>
                     <form method="post" action="/account/logout">@Html.AntiForgeryToken()<button type="submit"><i class="fa fa-sign-out"></i> Sign out</button></form>
@@ -60,28 +61,7 @@
 
     <partial name="_AboutDialog" />
 
-    @* Profile photo: saved in the database with the person (Vaikunth_Users.Photo), shrunk to 256 × 256 in the browser first. *@
-    @{ var photoError = TempData["PhotoError"] as string; var photoDone = TempData["PhotoDone"] as string; }
-    <vk-dialog id="photoDialog" title="Profile photo" icon="camera" ok-text="Save photo" action="/account/photo" enctype="multipart/form-data" width="440px">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
-        <div class="vk-photo-pick">
-            <span class="vk-photo-preview" id="photoPreview">
-                @if (User.PhotoUrl() is { } url) { <img src="@url" alt="" /> } else { <vk-avatar name="@User.DisplayName()" tone="@User.AvatarTone()" size="112" /> }
-            </span>
-            <label class="vk-btn vk-btn-light vk-photo-choose"><i class="fa fa-upload"></i> Choose a picture
-                <input type="file" name="photo" id="photoFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
-            </label>
-            <p class="vk-dialog-note">PNG, JPEG or WebP. It is cropped to a square and made small before it is saved.</p>
-            @if (photoError is not null) { <p class="vk-form-error" data-open-on-load>@photoError</p> }
-            @if (User.PhotoUrl() is not null)
-            {
-                <button type="submit" class="vk-link-btn" formaction="/account/photo/remove" formnovalidate><i class="fa fa-trash-o"></i> Remove my photo</button>
-            }
-        </div>
-    </vk-dialog>
-    <div class="vk-toast" id="toast" hidden></div>
-    @if (photoDone is not null) { <script>document.addEventListener("DOMContentLoaded", function () { VK.toast(@Json.Serialize(photoDone)); });</script> }
+    <partial name="_AccountDialogs" />
 
     <script src="~/_content/Vaikunth.UI/js/vaikunth.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)

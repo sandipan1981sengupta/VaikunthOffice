@@ -1,0 +1,31 @@
+@inject CurrentApp Current
+@* Full-window layout for the three editors: the app bar, the ribbon, the work area and the status bar
+   come from the app's own Editor/Index view (sections). *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <partial name="_Head" />
+    <title>@(ViewData["Title"] is string t ? $"{t} · {Current.Info.Name}" : Current.Info.Name)</title>
+    <meta name="theme-color" content="@Current.Info.Color" />
+    <link rel="stylesheet" href="~/_content/Vaikunth.UI/css/editor.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="vk-editor-body" data-app="@Current.Info.Key" style="--app:@Current.Info.Color;--app-tint:@Current.Info.Tint">
+    @Html.AntiForgeryToken()
+    @RenderBody()
+
+    <vk-dialog id="shareDialog" title="Share this file" icon="share-alt" ok-text="Send" ok-cmd="shareSend">
+        <vk-input id="shareTo" label="People" icon="user-plus" placeholder="Name or email" />
+        <div class="vk-share-who">
+            <span class="vk-avatar tone-2">PS</span><span><b>Priya Sharma</b><small>Can edit</small></span>
+        </div>
+        <vk-checkbox id="shareNotify" label="Send them an email" is-toggle="true" checked="true" />
+    </vk-dialog>
+
+    <partial name="_AboutDialog" />
+
+    <div class="vk-toast" id="toast" hidden></div>
+    <script src="~/_content/Vaikunth.UI/js/vaikunth.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

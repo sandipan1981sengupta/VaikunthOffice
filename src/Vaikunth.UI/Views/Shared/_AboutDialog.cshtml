@@ -3,7 +3,7 @@
 @using Vaikunth.ServiceLibrary
 @inject CurrentApp Current
 @inject IConfiguration Config
-@* About Vaikunth Office: the same glass window on every page (launcher, People, Clients, the three editors, sign-in).
+@* About Vaikunth Office: the same glass window on every page (launcher, People, Clients, the five apps, sign-in).
    Open it with any element that has data-open-dialog="aboutDialog". *@
 @{
     var v = Assembly.GetEntryAssembly()?.GetName().Version;
@@ -12,20 +12,20 @@
     var roleText = User.IsSuperAdmin() ? "Super admin" : User.IsInRole(AppRoles.TenantAdmin) ? "Client admin" : "Member";
     var data = ServiceRegistration.UsesMockData(Config) ? "Sample data (mock mode, no database)" : "SQL Server";
 }
-<dialog id="aboutDialog" class="vk-dialog vk-about-dialog" aria-labelledby="aboutTitle" style="width:min(520px, calc(100vw - 32px))">
+<dialog id="aboutDialog" class="vk-dialog vk-about-dialog" aria-labelledby="aboutTitle" style="width:min(620px, calc(100vw - 32px))">
     <div class="vk-dialog-inner">
         <div class="vk-about-head">
             <button type="button" class="vk-dialog-x" data-close aria-label="Close"><i class="fa fa-times" aria-hidden="true"></i></button>
             <vk-app-icon app="suite" size="84" />
             <h2 id="aboutTitle" class="vk-about-title">VAIKUNTH OFFICE</h2>
-            <div class="vk-muted">Documents, workbooks and slides for your whole office</div>
+            <div class="vk-muted">@SuiteApps.Suite.Tagline</div>
             <span class="vk-pill">Version @version</span>
         </div>
         <div class="vk-dialog-body vk-about-body">
             <div class="vk-about-apps">
                 @foreach (var a in SuiteApps.All)
                 {
-                    <span class="@(a.App == Current.Info.App ? "on" : "")"><img src="@a.IconUrl" alt="" width="34" height="34" /><b>@a.Name</b><small>@a.Kind</small></span>
+                    <span class="@(!Current.IsSuite && a.App == Current.Info.App ? "on" : "")"><img src="@a.IconUrl" alt="" width="34" height="34" /><b>@a.Name</b><small>@a.Kind</small></span>
                 }
             </div>
             @if (signedIn)

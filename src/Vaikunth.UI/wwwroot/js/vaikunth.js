@@ -87,7 +87,7 @@
         t.textContent = text;
         t.hidden = false;
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+        toastTimer = setTimeout(function () { t.hidden = true; }, Math.max(2600, Math.min(8000, text.length * 55)));
     };
 
     // ---- commands: every [data-cmd] button / select / colour goes to VK.onCommand(cmd, arg, el) ----
@@ -133,7 +133,59 @@
     VK.on("zoomOut", function () { VK.setZoom(VK.zoom - 10); });
     VK.on("share", function () { var d = document.getElementById("shareDialog"); if (d) d.showModal(); });
     VK.on("shareSend", function () { VK.closeDialog(document.getElementById("shareDialog")); VK.toast("Shared. They'll get an email with the link."); });
-    VK.on("fileMenu", function () { VK.toast("File menu: New, Open, Download and Print come in the next round."); });
+    VK.on("fileMenu", function () { var d = document.getElementById("fileDialog"); if (d) d.showModal(); });
+    VK.on("fileSave", function () {
+        if (!VK.getContent) return;
+        var p = VK.save(VK.getContent());
+        if (p) p.then(function (res) {
+            if (res && res.ok) { VK.closeDialog(document.getElementById("fileDialog")); VK.toast("Saved on the server at " + res.savedAt + "."); }
+            else VK.toast((res && res.error) || "Not saved. Check your connection and try again.");
+        });
+    });
+    VK.on("fileExport", function (arg, btn) { VK.exportFile(btn); });
+
+    // ---- download a copy for Microsoft Office (.docx / .xlsx / .pptx) ----
+    // An editor can set VK.exportLocal(fileName) to build the file in the browser (Slides does);
+    // otherwise the server turns the current content into the Office file.
+    VK.getContent = null;
+    VK.exportLocal = null;
+    VK.fileName = function () {
+        var t = document.getElementById("docTitle"), name = ((t && t.value) || "Untitled").replace(/[\\/:*?"<>|]+/g, " ").trim() || "Untitled";
+        return name + (document.body.dataset.ext || "");
+    };
+    VK.download = function (blob, name) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+    };
+    VK.loadScript = function (src) {
+        return new Promise(function (ok, fail) {
+            if (document.querySelector('script[src="' + src + '"]')) return ok();
+            var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.appendChild(s);
+        });
+    };
+    var exporting = false;
+    VK.exportFile = function (btn) {
+        if (!VK.getContent || exporting) return;
+        exporting = true;
+        var name = VK.fileName();
+        VK.toast("Preparing " + name + "…");
+        var done = function () { exporting = false; VK.closeDialog(document.getElementById("fileDialog")); };
+        var job = VK.exportLocal ? Promise.resolve(VK.exportLocal(name)) : (function () {
+            var token = document.querySelector('input[name="__RequestVerificationToken"]');
+            return fetch("/" + (document.body.dataset.app || "pages") + "/editor/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "RequestVerificationToken": token ? token.value : "" },
+                body: JSON.stringify({ title: name.replace(/\.[a-z]+$/, ""), content: VK.getContent() })
+            }).then(function (r) {
+                if (!r.ok) return r.text().then(function (t) { throw new Error(t || ("The server said " + r.status)); });
+                return r.blob();
+            }).then(function (blob) { VK.download(blob, name); });
+        })();
+        return job.then(function () { done(); VK.toast("Downloaded " + name + "."); })
+            .catch(function (e) { done(); VK.toast("Couldn't make the file: " + (e && e.message ? e.message : e)); });
+    };
 
     // ---- saving (the three editors call VK.save(getContent)) ----
     VK.docId = null;
@@ -141,7 +193,7 @@
         var state = document.getElementById("saveState"), title = document.getElementById("docTitle");
         if (state) state.innerHTML = '<i class="fa fa-refresh fa-spin"></i> Saving…';
         var token = document.querySelector('input[name="__RequestVerificationToken"]');
-        return fetch("/editor/save", {
+        return fetch("/" + (document.body.dataset.app || "pages") + "/editor/save", {
             method: "POST",
             headers: { "Content-Type": "application/json", "RequestVerificationToken": token ? token.value : "" },
             body: JSON.stringify({ documentId: VK.docId, title: title ? title.value : "Untitled", content: content })

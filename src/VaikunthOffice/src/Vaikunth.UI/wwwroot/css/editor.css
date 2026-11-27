@@ -1,0 +1,78 @@
+/* Vaikunth Office · the editor frame shared by the three apps: app bar, ribbon, status bar.
+   --app / --app-tint are set on <body> from the app's colours. */
+.vk-editor-body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #F3F4F8; }
+
+/* app bar */
+.vk-appbar { flex: none; display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 12px; background: var(--app); color: #fff; }
+.vk-appbar-waffle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; opacity: .92; }
+.vk-appbar-waffle:hover { background: rgba(255,255,255,.14); }
+.vk-appbar-app { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; white-space: nowrap; }
+.vk-appbar-app img { border-radius: 7px; box-shadow: 0 0 0 1.5px rgba(255,255,255,.55); }
+.vk-appbar-sep { width: 1px; height: 22px; background: rgba(255,255,255,.3); }
+.vk-doc-title { min-width: 120px; width: 260px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #fff; font-size: 14.5px; font-weight: 500; outline: none; }
+.vk-doc-title:hover { border-color: rgba(255,255,255,.3); }
+.vk-doc-title:focus { background: #fff; color: var(--vk-ink); }
+.vk-save-state { font-size: 12.5px; opacity: .8; white-space: nowrap; }
+.vk-appbar-fill { flex: 1; }
+.vk-appbar-search { display: flex; align-items: center; gap: 8px; width: 340px; height: 32px; padding: 0 12px; border-radius: 8px; background: rgba(255,255,255,.16); }
+.vk-appbar-search input { flex: 1; border: 0; background: transparent; color: #fff; outline: none; font-size: 13.5px; }
+.vk-appbar-search input::placeholder { color: rgba(255,255,255,.75); }
+.vk-appbar-btn { height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.1); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.vk-appbar-btn:hover { background: rgba(255,255,255,.22); }
+.vk-share { background: #fff; color: var(--app); border-color: #fff; }
+.vk-share:hover { background: var(--app-tint); }
+.vk-appbar .vk-avatar { box-shadow: 0 0 0 2px rgba(255,255,255,.7); width: 32px; height: 32px; font-size: 12px; }
+
+/* ribbon (vk-ribbon) */
+.vk-ribbon { flex: none; background: #fff; border-bottom: 1px solid #E3E5EE; box-shadow: 0 1px 2px rgba(20,22,52,.04); }
+.vk-ribbon-tabs { display: flex; align-items: flex-end; gap: 2px; padding: 4px 10px 0; background: linear-gradient(var(--app-tint), #fff); }
+.vk-ribbon-tabs button { border: 0; background: transparent; padding: 8px 14px 9px; font-size: 13.5px; font-weight: 500; color: #3B3F5C; cursor: pointer; border-radius: 8px 8px 0 0; position: relative; }
+.vk-ribbon-tabs button:hover { background: rgba(255,255,255,.7); }
+.vk-ribbon-tab.active { color: var(--app); font-weight: 700; background: #fff; }
+.vk-ribbon-tab.active::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--app); }
+.vk-ribbon-file { color: #fff !important; background: var(--app) !important; border-radius: 8px !important; margin: 0 6px 4px 0; padding: 5px 14px !important; font-weight: 600 !important; }
+.vk-ribbon-body { padding: 6px 8px 2px; min-height: 92px; }
+.vk-ribbon-panel { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
+.vk-ribbon-group { display: flex; flex-direction: column; padding: 0 10px; border-right: 1px solid #ECEDF3; }
+.vk-ribbon-group:last-child { border-right: 0; }
+.vk-ribbon-group-items { flex: 1; display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 3px; max-width: 330px; }
+.vk-ribbon-group-label { text-align: center; font-size: 11px; color: #7A7E99; padding: 4px 0 3px; }
+.vk-rb { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; border: 1px solid transparent; border-radius: 7px; background: transparent; cursor: pointer; font-size: 13px; color: #2B2E4A; white-space: nowrap; }
+.vk-rb i { font-size: 14px; width: 15px; text-align: center; color: #3B3F5C; }
+.vk-rb-icon { width: 30px; padding: 0; justify-content: center; position: relative; }
+.vk-rb:hover { background: var(--app-tint); border-color: color-mix(in srgb, var(--app) 18%, transparent); }
+.vk-rb.on { background: color-mix(in srgb, var(--app) 14%, #fff); border-color: color-mix(in srgb, var(--app) 35%, transparent); }
+.vk-rb.on i { color: var(--app); }
+.vk-rb-lg { flex-direction: column; height: 64px; min-width: 56px; padding: 4px 6px; gap: 3px; font-size: 12px; justify-content: center; }
+.vk-rb-lg i { font-size: 24px; width: auto; color: var(--app); }
+.vk-rsel { height: 30px; border: 1px solid #DADCE7; border-radius: 7px; background: #fff; padding: 0 6px; font-size: 13px; outline: none; }
+.vk-rsel:focus { border-color: var(--app); }
+.vk-rsep { width: 1px; height: 22px; background: #ECEDF3; margin: 0 3px; }
+.vk-rcolor { display: inline-flex; align-items: center; }
+.vk-swatch-bar { position: absolute; left: 7px; right: 7px; bottom: 4px; height: 3px; border-radius: 2px; background: var(--swatch); }
+.vk-rb-icon:has(.vk-swatch-bar) i { margin-top: -3px; }
+.vk-rcolor-pick { position: relative; width: 14px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; cursor: pointer; color: #7A7E99; font-size: 11px; }
+.vk-rcolor-pick:hover { background: var(--app-tint); }
+.vk-rcolor-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* work area */
+.vk-work { flex: 1; min-height: 0; position: relative; }
+
+/* status bar (vk-status-bar) */
+.vk-status { flex: none; display: flex; align-items: center; justify-content: space-between; height: 30px; padding: 0 14px; background: #fff; border-top: 1px solid #E3E5EE; font-size: 12.5px; color: #5F6383; }
+.vk-status-left { display: flex; gap: 18px; align-items: center; }
+.vk-zoom { display: flex; align-items: center; gap: 6px; }
+.vk-zoom button { width: 22px; height: 22px; border: 0; background: transparent; border-radius: 5px; cursor: pointer; color: #5F6383; font-size: 11px; }
+.vk-zoom button:hover { background: #EEF0F6; }
+.vk-zoom input[type=range] { width: 110px; accent-color: var(--app); }
+.vk-zoom-val { width: 40px; text-align: right; }
+
+/* toast */
+.vk-toast { position: fixed; left: 50%; bottom: 46px; transform: translateX(-50%); background: #1F2238; color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 13.5px; box-shadow: 0 20px 40px -16px rgba(0,0,0,.5); z-index: 50; }
+
+@media (max-width: 900px) {
+    .vk-appbar-search, .vk-save-state, .vk-appbar-app span { display: none; }
+    .vk-doc-title { width: 150px; }
+    .vk-ribbon-panel { flex-wrap: nowrap; overflow-x: auto; }
+}
+.vk-appbar-about { padding: 0 10px; font-size: 16px; }

@@ -1,0 +1,11 @@
+@* Scripts of the ShankhNaad (Template 1) controls. Each control starts itself when the page is ready. *@
+<script src="~/_content/Vaikunth.UI/lib/modern-controls/JS/jquery-3.7.1.min.js"></script>
+<script src="~/_content/Vaikunth.UI/lib/modern-controls/JS/flatpickr-v4.6.13.js"></script>
+<script src="~/_content/Vaikunth.UI/lib/modern-controls/JS/flatpickr-monthSelect-4.6.13.js"></script>
+<script src="~/_content/Vaikunth.UI/lib/modern-controls/JS/Chart.js-v4.5.1.js"></script>
+@foreach (var f in new[] { "modern-table", "modern-input", "modern-dropdown", "modern-dropdown-with-label", "modern-datepicker", "modern-datepicker-with-label",
+                           "modern-month-year-picker", "modern-radio", "modern-checkbox", "tab-control",
+                           "modern-column-chart", "modern-bar-chart", "modern-line-chart", "modern-donut-chart" })
+{
+    <script src="~/_content/Vaikunth.UI/js/web-control/@(f).js" asp-append-version="true"></script>
+}

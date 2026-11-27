@@ -1,0 +1,187 @@
+/* =========================================================
+   MODERN RADIO GROUP
+   Colors/spacing come from controls-theme.css — load that file first.
+   Same visual language as modern-checkbox.css: default fill uses
+   --ctrl-accent-gradient, selected state is light sky blue with a
+   black center dot (matching the checkbox's checked-state palette).
+   ========================================================= */
+
+.modern-radio-wrapper {
+    width: 100%;
+    font-family: var(--ctrl-font);
+}
+
+.mr-group-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px; /* default — overridden inline when Label-FontSize is set */
+    font-weight: 500; /* default — overridden inline when Label-FontWeight is set */
+    color: var(--ctrl-text);
+}
+
+.mr-required {
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 1.15em;
+    line-height: 1;
+    vertical-align: middle;
+    position: relative;
+    top: -0.15em;
+    display: inline-block;
+}
+
+.mr-control {
+    position: relative;
+    display: flex;
+    gap: 12px;
+}
+
+.mr-options-stacked {
+    flex-direction: column;
+}
+
+.mr-options-inline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+}
+
+.mr-cbx {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+    .mr-cbx input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 22px;
+        height: 22px;
+        margin: 0;
+        cursor: pointer;
+        z-index: 2;
+    }
+
+        .mr-cbx input[type="radio"]:disabled {
+            cursor: not-allowed;
+        }
+
+.mr-indicator {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: var(--ctrl-accent-gradient, var(--ctrl-accent)); /* default/unselected fill — matches mc-box's convention */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s ease, box-shadow .15s ease;
+}
+
+.mr-cbx input[type="radio"]:hover ~ .mr-indicator {
+    box-shadow: 0 0 0 3px var(--ctrl-accent-ring);
+}
+
+.mr-cbx input[type="radio"]:focus-visible ~ .mr-indicator {
+    box-shadow: 0 0 0 4px var(--ctrl-accent-ring);
+}
+
+.mr-cbx input[type="radio"]:checked ~ .mr-indicator {
+    background: #87ceeb; /* light sky blue — matches mc-box's checked color */
+    box-shadow: 0 4px 10px rgba(135, 206, 235, 0.5);
+    animation: mr-pop .2s ease;
+}
+
+@keyframes mr-pop {
+    0% {
+        transform: scale(.85);
+    }
+
+    60% {
+        transform: scale(1.08);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.mr-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #000; /* black center dot when selected, matching the checkbox's black checkmark */
+    transform: scale(0);
+    transition: transform .15s ease .05s;
+}
+
+.mr-cbx input[type="radio"]:checked ~ .mr-indicator .mr-dot {
+    transform: scale(1);
+}
+
+.mr-cbx input[type="radio"]:disabled ~ .mr-indicator {
+    opacity: .5;
+}
+
+.mr-option-text {
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--ctrl-text);
+}
+
+.mr-cbx input[type="radio"]:disabled ~ .mr-option-text {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* ---- Mandatory error icon — same convention as ModernCheckbox/ModernInput ---- */
+.mr-icon-error {
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+}
+
+/* Only nudge it down when it sits on its own row below the last
+   option (stacked layout) — in inline layout it's already vertically
+   centered against the options via .mr-control's align-items:center. */
+.mr-options-stacked .mr-icon-error {
+    margin-top: 4px;
+}
+
+.mr-icon-error[data-tooltip] {
+    cursor: help;
+}
+
+    .mr-icon-error[data-tooltip]:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 130%;
+        left: 0;
+        background: var(--ctrl-text);
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: var(--ctrl-radius-sm);
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        box-shadow: var(--ctrl-shadow-md);
+        z-index: 20;
+        pointer-events: none;
+    }
+
+    .mr-icon-error[data-tooltip]:hover::before {
+        content: "";
+        position: absolute;
+        bottom: 118%;
+        left: 6px;
+        border: 5px solid transparent;
+        border-top-color: var(--ctrl-text);
+        z-index: 20;
+        pointer-events: none;
+    }

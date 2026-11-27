@@ -15,6 +15,9 @@ public sealed class VkCheckboxTagHelper : TagHelper
     public string? Label { get; set; }
     public bool Checked { get; set; }
     public bool IsToggle { get; set; }
+    /// <summary>A second, smaller line under the label.</summary>
+    public string? Description { get; set; }
+    public bool Disabled { get; set; }
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
@@ -24,9 +27,9 @@ public sealed class VkCheckboxTagHelper : TagHelper
         output.Attributes.SetAttribute("for", Id);
         var name = E(Name ?? Id);
         output.Content.SetHtmlContent($"""
-            <input type="checkbox" id="{E(Id)}" name="{name}" value="true"{(Checked ? " checked" : "")} />
+            <input type="checkbox" id="{E(Id)}" name="{name}" value="true"{(Checked ? " checked" : "")}{(Disabled ? " disabled" : "")} />
             <span class="vk-check-box" aria-hidden="true"></span>
-            <span class="vk-check-text">{E(Label)}</span>
+            <span class="vk-check-text">{E(Label)}{(Description is null ? "" : $"<small class=\"vk-check-desc\">{E(Description)}</small>")}</span>
             <input type="hidden" name="{name}" value="false" />
             """);
     }

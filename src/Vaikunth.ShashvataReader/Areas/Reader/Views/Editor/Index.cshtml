@@ -1,0 +1,108 @@
+@model DocumentDto
+@{
+    Layout = "_EditorLayout";   // full-window editor frame from Vaikunth.UI
+    ViewData["Title"] = Model.Title;
+}
+@section Styles { <link rel="stylesheet" href="~/_content/Vaikunth.ShashvataReader/css/reader.css" asp-append-version="true" /> }
+
+<vk-app-bar app="reader" doc-title="@Model.Title" user-name="@User.DisplayName()" avatar-tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
+
+<vk-ribbon>
+    <vk-ribbon-tab title="Home" active="true">
+        <vk-ribbon-group label="File">
+            <vk-ribbon-btn cmd="openPdf" icon="folder-open" text="Open PDF" size="large" tooltip="Open a PDF from this computer" />
+            <vk-ribbon-btn cmd="fileExport" icon="download" text="Download" size="large" tooltip="Download the PDF" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Go to">
+            <vk-ribbon-btn cmd="goFirst" icon="step-backward" tooltip="First page (Home)" />
+            <vk-ribbon-btn cmd="goPrev" icon="chevron-left" tooltip="Previous page" />
+            <span class="rd-pagebox"><input id="pageNo" type="number" min="1" value="1" aria-label="Page number" /> <span>of <b id="pageCount">0</b></span></span>
+            <vk-ribbon-btn cmd="goNext" icon="chevron-right" tooltip="Next page" />
+            <vk-ribbon-btn cmd="goLast" icon="step-forward" tooltip="Last page (End)" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Zoom">
+            <vk-ribbon-btn cmd="zoomOut" icon="search-minus" tooltip="Zoom out" />
+            <vk-ribbon-select cmd="zoomTo" options="width|Fit width,page|Whole page,50|50%,75|75%,100|100%,125|125%,150|150%,200|200%" width="118" tooltip="Zoom" />
+            <vk-ribbon-btn cmd="zoomIn" icon="search-plus" tooltip="Zoom in" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Mark">
+            <vk-ribbon-btn cmd="addNote" icon="sticky-note-o" text="Add note" size="large" tooltip="Add a note to this page" />
+            <vk-ribbon-btn cmd="bookmark" icon="bookmark-o" text="Bookmark" size="large" tooltip="Bookmark this page" id="bookmarkBtn" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Find">
+            <span class="rd-find"><i class="fa fa-search" aria-hidden="true"></i><input id="findBox" placeholder="Find in the PDF" aria-label="Find in the PDF" /></span>
+            <vk-ribbon-btn cmd="findNext" icon="arrow-down" tooltip="Next match (Enter)" />
+            <vk-ribbon-btn cmd="findPrev" icon="arrow-up" tooltip="Previous match" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+    <vk-ribbon-tab title="View">
+        <vk-ribbon-group label="Panels">
+            <vk-ribbon-btn cmd="side" arg="pages" icon="th-large" text="Pages" />
+            <vk-ribbon-btn cmd="side" arg="bookmarks" icon="bookmark" text="Bookmarks" />
+            <vk-ribbon-btn cmd="side" arg="notes" icon="sticky-note" text="Notes" />
+            <vk-ribbon-btn cmd="toggleSide" icon="columns" text="Show or hide" />
+        </vk-ribbon-group>
+        <vk-ribbon-group label="Reading">
+            <vk-ribbon-btn cmd="night" icon="moon-o" text="Night reading" size="large" tooltip="Dark pages, easy on the eyes" id="nightBtn" />
+            <vk-ribbon-btn cmd="rotate" icon="repeat" text="Rotate" size="large" tooltip="Turn the pages a quarter turn" />
+        </vk-ribbon-group>
+    </vk-ribbon-tab>
+</vk-ribbon>
+
+<div class="vk-work rd-work" id="work">
+    <aside class="rd-side" id="side">
+        <nav class="rd-side-tabs" role="tablist">
+            <button type="button" data-side="pages" class="on"><i class="fa fa-th-large"></i> Pages</button>
+            <button type="button" data-side="bookmarks"><i class="fa fa-bookmark"></i> Bookmarks <b id="bmCount">0</b></button>
+            <button type="button" data-side="notes"><i class="fa fa-sticky-note"></i> Notes <b id="noteCount">0</b></button>
+        </nav>
+        <div class="rd-side-pane" data-pane-side="pages" id="thumbs"></div>
+        <div class="rd-side-pane" data-pane-side="bookmarks" id="bmList" hidden></div>
+        <div class="rd-side-pane" data-pane-side="notes" id="noteList" hidden></div>
+    </aside>
+
+    <div class="rd-view" id="viewer" tabindex="0" aria-label="PDF pages">
+        <div class="rd-pages" id="pages"></div>
+        <div class="rd-empty" id="empty" hidden>
+            <div class="rd-drop" id="drop">
+                <img src="/_content/Vaikunth.UI/images/app-reader.svg" width="76" height="76" alt="" />
+                <h2>Open a PDF</h2>
+                <p>Drop a PDF here, or pick one from this computer. It's saved in Vaikunth Office so you and your team can read it, add notes and bookmark pages.</p>
+                <button type="button" class="vk-btn vk-btn-primary" data-cmd="openPdf"><i class="fa fa-folder-open"></i> Choose a PDF</button>
+                <small>Up to 100 MB</small>
+            </div>
+        </div>
+        <div class="rd-loading" id="loading" hidden><i class="fa fa-circle-o-notch fa-spin"></i> Opening the PDF…</div>
+    </div>
+    <div class="rd-dropmask" id="dropMask" hidden><div><i class="fa fa-file-pdf-o"></i><b>Drop the PDF to open it</b></div></div>
+</div>
+<input type="file" id="pdfPick" accept="application/pdf,.pdf" hidden />
+
+<vk-status-bar zoom="100">
+    <span id="statPage"><i class="fa fa-file-pdf-o" style="color:#8E1B3A"></i> No PDF yet</span>
+    <span id="statNotes"></span>
+    <span id="statFind"></span>
+    <span id="statSize" class="vk-muted"></span>
+</vk-status-bar>
+
+@* Add or edit a note: saved with the file, so everyone who opens it sees it *@
+<vk-dialog id="noteDialog" title="Note" icon="sticky-note-o" ok-text="Save note" ok-cmd="saveNote" cancel-text="Cancel" width="480px">
+    <div class="rd-note-page">On page <b id="notePage">1</b></div>
+    <div class="vk-field">
+        <label class="vk-label" for="noteText">Note</label>
+        <textarea id="noteText" class="vk-input rd-note-text" rows="5" maxlength="2000" placeholder="What do you want to remember about this page?"></textarea>
+    </div>
+    <div class="rd-colors" role="radiogroup" aria-label="Colour">
+        <label><input type="radio" name="noteColor" value="gold" checked /><span class="c-gold"></span></label>
+        <label><input type="radio" name="noteColor" value="green" /><span class="c-green"></span></label>
+        <label><input type="radio" name="noteColor" value="blue" /><span class="c-blue"></span></label>
+        <label><input type="radio" name="noteColor" value="pink" /><span class="c-pink"></span></label>
+    </div>
+</vk-dialog>
+
+@section Scripts {
+    <script id="docData" type="application/json">@Html.Raw(Model.Content.Replace("</", "<\\/"))</script>
+    <script>VK.docId = "@Model.DocumentId"; VK.me = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(User.DisplayName()));</script>
+    <script src="~/_content/Vaikunth.ShashvataReader/lib/pdfjs/pdf.min.js"></script>
+    <script src="~/_content/Vaikunth.ShashvataReader/js/reader.js" asp-append-version="true"></script>
+}

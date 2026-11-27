@@ -1,8 +1,9 @@
 @model LauncherViewModel
 @{
     ViewData["Title"] = "Home";
-    string Open(SuiteApp app, Guid? id = null) => $"{Model.Suite.UrlFor(app)}/editor{(id is null ? "" : "?id=" + id)}";
-    string New(SuiteApp app) => $"{Model.Suite.UrlFor(app)}/editor/new";
+    // every app opens in its own browser tab; the landing page stays open in this one
+    string Open(SuiteApp app, Guid? id = null) => CurrentApp.EditorUrl(app, id);
+    string New(SuiteApp app) => CurrentApp.NewUrl(app);
 }
 <section class="vk-launch-head">
     <div>
@@ -10,9 +11,11 @@
         <vk-verse variant="inline" />
     </div>
     <div class="vk-launch-actions">
-        @if (User.Apps().Has(SuiteApp.Pages)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Pages)"><i class="fa fa-file-text-o"></i> Blank document</a> }
-        @if (User.Apps().Has(SuiteApp.Workbook)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Workbook)"><i class="fa fa-table"></i> Blank workbook</a> }
-        @if (User.Apps().Has(SuiteApp.Slides)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Slides)"><i class="fa fa-television"></i> Blank deck</a> }
+        @if (User.Apps().Has(SuiteApp.Pages)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Pages)" target="_blank"><i class="fa fa-file-text-o"></i> Blank document</a> }
+        @if (User.Apps().Has(SuiteApp.Slides)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Slides)" target="_blank"><i class="fa fa-television"></i> Blank deck</a> }
+        @if (User.Apps().Has(SuiteApp.Workbook)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Workbook)" target="_blank"><i class="fa fa-table"></i> Blank workbook</a> }
+        @if (User.Apps().Has(SuiteApp.Reader)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Reader)" target="_blank"><i class="fa fa-file-pdf-o"></i> Open a PDF</a> }
+        @if (User.Apps().Has(SuiteApp.Planner)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Planner)" target="_blank"><i class="fa fa-tasks"></i> New project</a> }
     </div>
 </section>
 
@@ -20,10 +23,32 @@
 {
     <div class="vk-banner err"><i class="fa fa-lock"></i> @blockedApp isn't part of your company's plan. Ask your admin to add it.</div>
 }
+@if (Model.Bill is { } bill)
+{
+    var today = Vaikunth.ServiceLibrary.BillingCalculator.Today;
+    <div class="vk-banner @(bill.State == BillState.Due ? "info" : "warn") vk-bill-banner">
+        <i class="fa @(bill.State == BillState.Due ? "fa-calendar" : "fa-exclamation-triangle")" aria-hidden="true"></i>
+        <span>
+            @if (bill.State == BillState.Due)
+            {
+                <text>Your Vaikunth Office bill of <b>@Money.Rupees(bill.Outstanding)</b> for @Money.Month(bill.OldestUnpaid!.Value) is due on <b>@Money.Day(bill.DueOn!.Value)</b>.</text>
+            }
+            else if (bill.State == BillState.OnHold)
+            {
+                <text><b>@Money.Rupees(bill.Outstanding)</b> is still unpaid. Vaikunth Office lets your team in until <b>@Money.Day(bill.HoldUntil!.Value)</b>; please pay before then.</text>
+            }
+            else
+            {
+                <text>Your Vaikunth Office payment of <b>@Money.Rupees(bill.Outstanding)</b> is @bill.DaysLate(today) days late.
+                @if (bill.BlocksOn is DateOnly blocks) { <text>Your team can't sign in from <b>@Money.Day(blocks)</b> unless it is paid.</text> }</text>
+            }
+        </span>
+    </div>
+}
 <section class="vk-tiles" aria-label="Apps">
     @foreach (var a in SuiteApps.All)
     {
-        <vk-app-tile app="@a.Key" href="@Open(a.App)" new-href="@New(a.App)" is-current="@(a.App == Model.Current.Info.App)"
+        <vk-app-tile app="@a.Key" href="@Open(a.App)" new-href="@New(a.App)" target="_blank"
                      is-locked="@(!User.Apps().Has(a.App))" />
     }
 </section>
@@ -46,7 +71,7 @@
             {
                 var a = SuiteApps.For(f.App);
                 <tr>
-                    <td><a class="vk-file-name" href="@Open(f.App, f.DocumentId)"><img src="@a.IconUrl" width="28" height="28" alt="" /> @f.Title</a></td>
+                    <td><a class="vk-file-name" href="@Open(f.App, f.DocumentId)" target="_blank"><img src="@a.IconUrl" width="28" height="28" alt="" /> @f.Title</a></td>
                     <td class="vk-muted">@a.Name</td>
                     <td class="vk-muted">@f.OwnerName</td>
                     <td class="vk-muted">@UserExtensions.Ago(f.ModifiedUtc)</td>

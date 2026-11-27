@@ -1,0 +1,15 @@
+@* The ShankhNaad (Template 1) controls: modern-input, modern-dropdown-with-label, modern-datepicker-with-label,
+   modern-month-year-picker, modern-table, modern-radio-group, modern-checkbox, modern-group-box and the charts.
+   Their scripts are in _ModernControlsScripts (jQuery, flatpickr and Chart.js first). *@
+<link rel="stylesheet" href="~/_content/Vaikunth.UI/lib/modern-controls/CSS/flatpickr.min.css" />
+<link rel="stylesheet" href="~/_content/Vaikunth.UI/lib/modern-controls/CSS/flatpickr-monthSelect-4.6.13.css" />
+<link rel="stylesheet" href="~/_content/Vaikunth.UI/lib/modern-controls/bootstrap-icon/bootstrap-icons.min.css" />
+<link rel="stylesheet" href="~/_content/Vaikunth.UI/css/Theme/controls-theme.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/_content/Vaikunth.UI/css/Theme/flatpickr-theme.css" asp-append-version="true" />
+@foreach (var f in new[] { "modern-table", "modern-input", "modern-dropdown", "modern-dropdown-with-label", "modern-datepicker", "modern-datepicker-with-label",
+                           "modern-month-year-picker", "modern-radio", "modern-checkbox", "cee-group-box-modern", "tab-control",
+                           "modern-column-chart", "modern-bar-chart", "modern-line-chart", "modern-donut-chart" })
+{
+    <link rel="stylesheet" href="~/_content/Vaikunth.UI/css/web-control/@(f).css" asp-append-version="true" />
+}
+<link rel="stylesheet" href="~/_content/Vaikunth.UI/css/Theme/vaikunth-controls.css" asp-append-version="true" />

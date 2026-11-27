@@ -60,12 +60,13 @@ public sealed class TeamController : Controller
     }
 
     [HttpPost("invite"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Invite(string displayName, string email, string role)
+    public async Task<IActionResult> Invite(string displayName, string email, string role, string? department, string? jobTitle, DateOnly? joiningDate)
     {
         var result = await _users.InviteAsync(new InviteRequest
         {
             TenantId = User.TenantId(), InvitedBy = User.UserId(), DisplayName = displayName ?? "", Email = email ?? "",
-            Role = role == AppRoles.TenantAdmin ? AppRoles.TenantAdmin : AppRoles.Member
+            Role = role == AppRoles.TenantAdmin ? AppRoles.TenantAdmin : AppRoles.Member,
+            Department = department, JobTitle = jobTitle, JoiningDate = joiningDate
         });
         if (!result.Succeeded) { TempData["Error"] = result.Error; return RedirectToAction(nameof(Index)); }
 
@@ -96,6 +97,19 @@ public sealed class TeamController : Controller
         TempData[sent ? "Ok" : "Error"] = sent
             ? (person.IsInvited ? $"A new invite is on its way to {person.Email}." : $"A password reset link is on its way to {person.Email}.")
             : "The email couldn't be sent. Check the email settings.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Correct someone's name, department, job title or joining date.</summary>
+    [HttpPost("details"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> Details(Guid userId, string displayName, string? department, string? jobTitle, DateOnly? joiningDate)
+    {
+        var result = await _users.UpdateMemberAsync(new UpdateMemberRequest
+        {
+            TenantId = User.TenantId(), UserId = userId, DisplayName = displayName ?? "",
+            Department = department, JobTitle = jobTitle, JoiningDate = joiningDate
+        });
+        TempData[result.Succeeded ? "Ok" : "Error"] = result.Succeeded ? $"{displayName?.Trim()}'s details are saved." : result.Error;
         return RedirectToAction(nameof(Index));
     }
 

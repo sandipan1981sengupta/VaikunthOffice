@@ -31,14 +31,21 @@ internal static class MockData
         public int[] ExtraFiles { get; set; } = [0, 0, 0];
         public DateTime CreatedUtc { get; init; } = DateTime.UtcNow;
         public string? AdminEmail { get; set; }
+        /// <summary>First month the client pays for. New clients: next month.</summary>
+        public DateOnly? BillingFrom { get; set; } = Money.FirstOfMonth(DateOnly.FromDateTime(DateTime.Now)).AddMonths(1);
+        public DateOnly? BillingHoldUntil { get; set; }
+        public bool BillingBlocked { get; set; }
     }
+
+    public static readonly BillingSettingsDto Billing = new();
+    public static readonly List<PaymentDto> Payments = [];
 
     public sealed class Person
     {
         public Guid UserId { get; init; } = Guid.NewGuid();
         public Guid? TenantId { get; init; }
         public string DisplayName { get; set; } = "";
-        public string Email { get; init; } = "";
+        public string Email { get; set; } = "";
         public string Role { get; set; } = AppRoles.Member;
         /// <summary>Plain text is fine here: this is only the in-memory mock. Null = invited, no password yet.</summary>
         public string? Password { get; set; }
@@ -46,6 +53,9 @@ internal static class MockData
         public DateTime CreatedUtc { get; init; } = DateTime.UtcNow;
         public DateTime? LastLoginUtc { get; set; }
         public string? InvitedByName { get; init; }
+        public string? Department { get; set; }
+        public string? JobTitle { get; set; }
+        public DateOnly? JoiningDate { get; set; }
     }
 
     /// <summary>Password links: token hash (hex) → link.</summary>
@@ -69,24 +79,50 @@ internal static class MockData
             };
         }
         T(AcmeId, "Acme Corp", "acme", 2, SuiteAppFlags.All, true, 0, 2310, [148, 62, 37], 120, "priya.sharma@acme.com");
-        void P(string name, string email, string role, string? password, bool active, int days, int? lastLoginHours, string? by)
+        void P(string name, string email, string role, string? password, bool active, int days, int? lastLoginHours, string? by,
+               string dept, string job)
         {
             People[email] = new Person
             {
                 TenantId = AcmeId, DisplayName = name, Email = email, Role = role, Password = password, IsActive = active,
-                CreatedUtc = DateTime.UtcNow.AddDays(-days), LastLoginUtc = lastLoginHours is int h ? DateTime.UtcNow.AddHours(-h) : null, InvitedByName = by
+                CreatedUtc = DateTime.UtcNow.AddDays(-days), LastLoginUtc = lastLoginHours is int h ? DateTime.UtcNow.AddHours(-h) : null, InvitedByName = by,
+                Department = dept, JobTitle = job, JoiningDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-days - 3))
             };
         }
-        P("Priya Sharma", "priya.sharma@acme.com", AppRoles.TenantAdmin, "vaikunth123", true, 120, 1, null);
-        P("Arjun Nair", "arjun.nair@acme.com", AppRoles.Member, "vaikunth123", true, 90, 5, "Priya Sharma");
-        P("Fatima Khan", "fatima.khan@acme.com", AppRoles.TenantAdmin, "vaikunth123", true, 80, 30, "Priya Sharma");
-        P("Rohan Das", "rohan.das@acme.com", AppRoles.Member, "vaikunth123", true, 45, 52, "Priya Sharma");
-        P("Meera Iyer", "meera.iyer@acme.com", AppRoles.Member, null, true, 2, null, "Priya Sharma");
-        P("Kabir Singh", "kabir.singh@acme.com", AppRoles.Member, "vaikunth123", false, 200, 900, "Priya Sharma");
+        P("Priya Sharma", "priya.sharma@acme.com", AppRoles.TenantAdmin, "vaikunth123", true, 120, 1, null, "Administration", "Office manager");
+        P("Arjun Nair", "arjun.nair@acme.com", AppRoles.Member, "vaikunth123", true, 90, 5, "Priya Sharma", "Sales", "Sales executive");
+        P("Fatima Khan", "fatima.khan@acme.com", AppRoles.TenantAdmin, "vaikunth123", true, 80, 30, "Priya Sharma", "Finance", "Accounts lead");
+        P("Rohan Das", "rohan.das@acme.com", AppRoles.Member, "vaikunth123", true, 45, 52, "Priya Sharma", "Engineering", "Developer");
+        P("Meera Iyer", "meera.iyer@acme.com", AppRoles.Member, null, true, 2, null, "Priya Sharma", "Human resources", "HR associate");
+        P("Kabir Singh", "kabir.singh@acme.com", AppRoles.Member, "vaikunth123", false, 200, 900, "Priya Sharma", "Sales", "Field sales");
         T(Guid.NewGuid(), "Shree Textiles", "shree-textiles", 1, SuiteAppFlags.Pages | SuiteAppFlags.Workbook, true, 7, 380, [41, 88, 0], 64, "owner@shreetextiles.in");
-        T(Guid.NewGuid(), "Nirmaan Infra", "nirmaan", 3, SuiteAppFlags.All, true, 212, 38400, [1290, 840, 315], 210, "it@nirmaaninfra.com");
+        T(Guid.NewGuid(), "Nirmaan Infra", "nirmaan", 3, SuiteAppFlags.All, true, 212, 38400, [1290, 840, 315, 460, 38], 210, "it@nirmaaninfra.com");
         T(Guid.NewGuid(), "Gurukul Public School", "gurukul", 1, SuiteAppFlags.Pages | SuiteAppFlags.Slides, true, 9, 910, [76, 4, 52], 30, "principal@gurukul.edu.in");
-        T(Guid.NewGuid(), "Sagar Logistics", "sagar", 2, SuiteAppFlags.All, false, 18, 1620, [90, 133, 12], 400, "ops@sagarlogistics.com");
+        T(Guid.NewGuid(), "Sagar Logistics", "sagar", 2, SuiteAppFlags.All, false, 18, 1620, [90, 133, 12, 25, 6], 400, "ops@sagarlogistics.com");
+        SeedBilling();
+    }
+
+    /// <summary>Sample money: Acme has paid every month, Nirmaan hasn't paid this month (late), Sagar stopped paying (blocked).</summary>
+    private static void SeedBilling()
+    {
+        var thisMonth = Money.FirstOfMonth(DateOnly.FromDateTime(DateTime.Now));
+        Tenant BySlug(string slug) => Tenants.Values.First(t => t.Slug == slug);
+        void Pay(Tenant t, int monthsAgo, string method, string? reference, int paidDay)
+        {
+            var month = thisMonth.AddMonths(-monthsAgo);
+            var bill = MaxUsers(t) * Plans.First(p => p.PlanId == t.PlanId).PricePerUser;
+            var paidOn = new DateOnly(month.Year, month.Month, Math.Min(paidDay, 28));
+            if (paidOn > DateOnly.FromDateTime(DateTime.Now)) paidOn = DateOnly.FromDateTime(DateTime.Now);
+            Payments.Add(new PaymentDto(Guid.NewGuid(), t.TenantId, t.Name, month, bill, bill, paidOn, method, reference, null, "Vaikunth Office admin",
+                paidOn.ToDateTime(new TimeOnly(11, 0)).ToUniversalTime()));
+        }
+        foreach (var t in Tenants.Values) t.BillingFrom = thisMonth.AddMonths(-5);
+        var acme = BySlug("acme");
+        for (var m = 5; m >= 0; m--) Pay(acme, m, m % 2 == 0 ? "Bank transfer" : "UPI", $"UTR{40213 + m * 7}", 6 + m);
+        var nirmaan = BySlug("nirmaan");
+        for (var m = 5; m >= 1; m--) Pay(nirmaan, m, "Cheque", $"CHQ-{118300 + m}", 9);
+        var sagar = BySlug("sagar");
+        for (var m = 5; m >= 3; m--) Pay(sagar, m, "Bank transfer", $"UTR{77120 + m}", 12);
     }
 
     public static int MaxUsers(Tenant t) => t.MaxUsersOverride ?? Plans.First(p => p.PlanId == t.PlanId).MaxUsers;

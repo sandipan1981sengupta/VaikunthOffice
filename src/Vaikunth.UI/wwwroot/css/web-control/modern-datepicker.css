@@ -1,0 +1,85 @@
+﻿/* =========================================================
+   DATE PICKER STYLE
+   Colors/spacing come from controls-theme.css — load that file first.
+   Calendar popup styling lives in flatpickr-theme.css (shared with
+   modern-datepicker-with-label.css) — load that file before this one.
+   ========================================================= */
+
+.modern-datepicker,
+#datepicker {
+    width: 240px;
+    height: 48px;
+    padding: 0 16px;
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--dp-radius, 0px); /* configurable via border-radius; defaults to square corners */
+    background: var(--ctrl-bg);
+    color: var(--ctrl-text);
+    font-size: 15px;
+    font-family: var(--ctrl-font);
+    outline: none;
+    box-sizing: border-box;
+    transition: .2s ease;
+}
+
+    .modern-datepicker:focus,
+    #datepicker:focus {
+        border-color: var(--ctrl-accent);
+        box-shadow: 0 0 0 4px var(--ctrl-accent-ring);
+    }
+
+
+/* =========================================
+   DATEPICKER INPUT
+   ========================================= */
+
+.datepicker-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.modern-datepicker {
+    width: 100% !important;
+    height: 48px;
+    padding-left: 16px !important;
+    padding-right: 48px !important;
+}
+
+.datepicker-wrapper .modern-datepicker:focus {
+    border-color: var(--ctrl-accent);
+    box-shadow: 0 0 0 4px var(--ctrl-accent-ring);
+}
+
+
+/* =========================================
+   CALENDAR ICON
+   ========================================= */
+
+.datepicker-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ctrl-accent);
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 5;
+    transition: all .2s ease;
+}
+
+    .datepicker-icon:hover {
+        color: var(--ctrl-accent-dark);
+        transform: translateY(-50%) scale(1.08);
+    }
+
+.datepicker-wrapper.dp-disabled .modern-datepicker {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    pointer-events: none; /* blocks focus/click even though input is also disabled */
+}
+
+.datepicker-wrapper.dp-disabled .datepicker-icon {
+    color: #d1d5db;
+    pointer-events: none;
+}

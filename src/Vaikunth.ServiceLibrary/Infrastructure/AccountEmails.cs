@@ -20,7 +20,7 @@ public sealed class AccountEmailService : IAccountEmailService
     public Task<bool> SendClientWelcomeAsync(string toEmail, string personName, string companyName, string setPasswordUrl) =>
         _email.SendAsync(toEmail, $"Welcome to Vaikunth Office, {companyName}", Layout(
             $"Welcome, {E(personName)}",
-            $"<p><b>{E(companyName)}</b> now has Vaikunth Office: Akshara Pages, Hrishikesha Workbook and Vishwaroopa Slides.</p>" +
+            $"<p><b>{E(companyName)}</b> now has Vaikunth Office: Akshara Pages, Vishwaroopa Slides, Hrishikesha Workbook, Shashvata Reader and Dhruva Planner.</p>" +
             "<p>You are the admin for your company. Set your password, then add the people in your office from the <b>People</b> page. Each of them gets an email like this one.</p>",
             "Set my password", setPasswordUrl, "This link works once and is valid for 7 days."));
 
@@ -28,7 +28,7 @@ public sealed class AccountEmailService : IAccountEmailService
         _email.SendAsync(toEmail, $"{invitedBy} added you to Vaikunth Office", Layout(
             $"Hello {E(personName)}",
             $"<p><b>{E(invitedBy)}</b> added you to <b>{E(companyName)}</b> on Vaikunth Office.</p>" +
-            "<p>Set your password to start writing documents, building workbooks and presenting slides.</p>",
+            "<p>Set your password to start writing documents, presenting slides, building workbooks, reading PDFs and planning projects.</p>",
             "Set my password", setPasswordUrl, "This link works once and is valid for 7 days."));
 
     public Task<bool> SendPasswordResetAsync(string toEmail, string personName, string setPasswordUrl) =>
@@ -44,7 +44,7 @@ public sealed class AccountEmailService : IAccountEmailService
           <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #E3E5EE">
             <tr><td style="background:linear-gradient(110deg,#1E2060,#2B2F86 55%,#14A3A0);background-color:#1E2060;padding:22px 28px;color:#fff">
               <span style="font-size:18px;letter-spacing:3px;font-weight:800">VAIKUNTH</span> <span style="font-size:18px;letter-spacing:3px;opacity:.75">OFFICE</span>
-              <div style="font-size:12px;opacity:.85;margin-top:4px">Akshara Pages · Hrishikesha Workbook · Vishwaroopa Slides</div>
+              <div style="font-size:12px;opacity:.85;margin-top:4px">Akshara Pages · Vishwaroopa Slides · Hrishikesha Workbook · Shashvata Reader · Dhruva Planner</div>
             </td></tr>
             <tr><td style="padding:28px">
               <h1 style="margin:0 0 14px;font-size:22px;color:#141634">{title}</h1>

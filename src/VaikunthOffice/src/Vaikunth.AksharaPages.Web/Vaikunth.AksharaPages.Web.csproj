@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Akshara Pages (Word) web app. Login, launcher, tag helpers and layouts come from Vaikunth.UI;
+       all data access is in Vaikunth.ServiceLibrary. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Vaikunth.AksharaPages.Web</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>Akshara Pages</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vaikunth.DtoLibrary\Vaikunth.DtoLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.ServiceLibrary\Vaikunth.ServiceLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.UI\Vaikunth.UI.csproj" />
+  </ItemGroup>
+
+</Project>

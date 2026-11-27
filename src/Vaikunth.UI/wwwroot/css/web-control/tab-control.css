@@ -1,0 +1,94 @@
+/* ===== Tab Control =====
+   Rounded pill-style tab strip. Ships with its own self-contained dark
+   theme (independent of this app's --ctrl-* tokens, which look tuned for
+   a light UI) so it matches the reference design out of the box. Every
+   color/spacing value below is overridable per-instance via the
+   <tab-control> tag helper's properties, which set the --tc-* custom
+   properties via inline style. */
+
+.tab-control-wrapper {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: var(--tc-width, auto);
+    height: var(--tc-height, 52px);
+    padding: 5px;
+    background: var(--tc-bg, linear-gradient(135deg, #0f1826 0%, #1c2b3d 55%, #172029 100%));
+    border: var(--tc-border-width, 1px) solid var(--tc-border-color, transparent);
+    border-radius: var(--tc-radius, 999px);
+    font-family: inherit;
+    overflow-x: auto; /* graceful degradation if a lot of tabs are added */
+}
+
+.tc-tabs {
+    position: relative; /* positioning context for the sliding indicator */
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    gap: var(--tc-gap, 4px);
+}
+
+/* The single "pill" that slides between tabs. Its left/width are set by
+   tab-control.js to match whichever button is active; the transition
+   below is what makes that change animate instead of jump. It starts
+   without the .tc-animated class so the very first placement (on page
+   load) is instant, not a slide-in from the corner. */
+.tc-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0;
+    box-sizing: border-box; /* so the border below draws inward, keeping the indicator's total size matched exactly to the active button's offsetWidth */
+    background: var(--tc-active-bg, rgba(255, 255, 255, 0.12));
+    border: var(--tc-active-border-width, 1px) solid var(--tc-active-border-color, rgba(255, 255, 255, 0.15));
+    border-radius: var(--tc-radius, 999px);
+    pointer-events: none; /* clicks pass through to the tab button on top of it */
+    z-index: 0;
+}
+
+    .tc-indicator.tc-animated {
+        transition: left var(--tc-transition-duration, 0.25s) ease, width var(--tc-transition-duration, 0.25s) ease, background-color var(--tc-transition-duration, 0.25s) ease, border-color var(--tc-transition-duration, 0.25s) ease;
+    }
+
+.tc-tab {
+    position: relative; /* sits above the indicator */
+    z-index: 1;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 22px;
+    margin: 0;
+    border: none;
+    border-radius: var(--tc-radius, 999px);
+    background: transparent;
+    color: var(--tc-text-color, #97a3b3);
+    font-family: inherit;
+    font-size: var(--tc-font-size, 14px);
+    font-weight: var(--tc-font-weight, 500);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+    .tc-tab:hover:not(.active):not(.disabled) {
+        color: var(--tc-active-text-color, #eef1f5);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tc-tab.active {
+        color: var(--tc-active-text-color, #ffffff);
+        font-weight: var(--tc-active-font-weight, 700);
+    }
+
+    .tc-tab.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .tc-tab:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.55);
+        outline-offset: 2px;
+    }

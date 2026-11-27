@@ -1,0 +1,297 @@
+/* =========================================================
+   MODERN CHECKBOX
+   Colors/spacing come from controls-theme.css — load that file first.
+   Two visual variants, chosen by the TagHelper's IsToggleButton flag:
+     .mc-box    — classic checkbox with animated checkmark (default)
+     .mc-toggle — iOS-style sliding toggle switch
+   ========================================================= */
+
+.modern-checkbox-wrapper {
+    width: 100%;
+    font-family: var(--ctrl-font);
+}
+
+.mc-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* ---- Required asterisk — matches ModernInput's .mi-required ---- */
+.mc-required {
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 1.15em;
+    line-height: 1;
+    vertical-align: middle;
+    position: relative;
+    top: -0.15em;
+    display: inline-block;
+}
+
+.mc-cbx {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+    .mc-cbx input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+        z-index: 2;
+    }
+
+        .mc-cbx input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+        }
+
+/* ---- No desc-text: only one line of text. justify-content on the
+   label itself does nothing here, because .mc-text has no explicit
+   height to center within — it shrinks to fit its single line. The
+   actual fix is to drop the flex-column layout altogether for this
+   case, so .mc-text behaves like a normal inline block and its
+   vertical position is governed by .mc-control's align-items:center
+   (the row that actually has height, stretched by the checkbox/toggle). ---- */
+.mc-text.mc-text-single {
+    display: block;
+}
+
+.mc-text {
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mc-title {
+    font-size: 15px; /* default — overridden inline when Label-FontSize is set */
+    font-weight: 500; /* default — overridden inline when Label-FontWeight is set */
+    color: var(--ctrl-text);
+}
+
+.mc-desc {
+    font-size: 13px;
+    color: var(--ctrl-text-faint);
+    margin-top: 2px;
+}
+
+/* ---- No desc-text supplied: single line, so center it against the
+   checkbox/toggle instead of leaving it anchored to the top (which is
+   how flex-column normally sits when a second line is expected) ---- */
+.mc-text-single {
+    justify-content: center;
+}
+
+/* =========================================================
+   VARIANT 1 — mc-box: classic checkbox, checkmark fill
+   ========================================================= */
+
+.mc-box .mc-cbx {
+    width: 24px;
+    height: 24px;
+}
+
+.mc-box .mc-indicator {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--ctrl-radius-sm);
+    border: 1px solid transparent;
+    background: var(--ctrl-accent-gradient, var(--ctrl-accent)); /* CHANGED — gradient is now the default/unchecked fill, not just the checked state */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; /* CHANGED — was "transition: all", which also transitioned inherited/composited opacity changes from the parent modal's fade-out, causing a flash right as the modal closed */
+    pointer-events: none;
+}
+
+.mc-box .mc-cbx input:hover ~ .mc-indicator {
+    box-shadow: 0 0 0 3px var(--ctrl-accent-ring); /* CHANGED — hover cue no longer relies on a visible border, since the box has no border color to change against a gradient fill */
+}
+
+.mc-box .mc-cbx input:focus-visible ~ .mc-indicator {
+    box-shadow: 0 0 0 4px var(--ctrl-accent-ring);
+}
+
+.mc-box .mc-cbx input:checked ~ .mc-indicator {
+    background: #87ceeb; /* CHANGED — checked state is now light sky blue instead of the gradient */
+    border-color: transparent;
+    box-shadow: 0 4px 10px rgba(135, 206, 235, 0.5);
+    animation: mc-pop .2s ease;
+}
+
+@keyframes mc-pop {
+    0% {
+        transform: scale(.85);
+    }
+
+    60% {
+        transform: scale(1.08);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.mc-box .mc-check {
+    width: 14px;
+    height: 14px;
+    stroke: transparent; /* CHANGED — invisible against the gradient default; only revealed once checked (see rule below) */
+    stroke-width: 3.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: stroke-dashoffset .2s ease .05s, stroke .2s ease;
+}
+
+.mc-box .mc-cbx input:checked ~ .mc-indicator .mc-check {
+    stroke: #000; /* CHANGED — black checkmark on the sky-blue checked background */
+    stroke-dashoffset: 0;
+}
+
+.mc-box .mc-cbx input:disabled ~ .mc-indicator {
+    opacity: .5;
+}
+
+/* =========================================================
+   VARIANT 2 — mc-toggle: iOS-style sliding switch, wide with
+   ON/OFF text inside — green track when checked, red when not
+   ========================================================= */
+
+.mc-toggle .mc-cbx {
+    width: 64px;
+    height: 30px;
+}
+
+.mc-toggle .mc-indicator {
+    width: 64px;
+    height: 30px;
+    border-radius: 999px;
+    background: #dc2626; /* unchecked = red */
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    padding: 3px;
+    box-sizing: border-box;
+    transition: background .2s ease;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.mc-toggle .mc-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    transition: transform .2s cubic-bezier(.4,0,.2,1);
+    position: relative;
+    z-index: 2;
+}
+
+/* ---- User-defined ON / OFF text inside the track (OnText / OffText
+   properties). Rendered as real spans rather than CSS ::before content,
+   since ::before can't hold a server-supplied string. Both sit in the
+   same spot (absolutely positioned) and are cross-faded by opacity based
+   on :checked, rather than swapped, so track width doesn't need to
+   change to fit whichever word is longer. ---- */
+.mc-toggle-text {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    z-index: 1;
+    transition: opacity .15s ease;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.mc-toggle-text-off {
+    right: 7px;
+    opacity: 1;
+}
+
+.mc-toggle-text-on {
+    left: 8px;
+    opacity: 0;
+}
+
+.mc-toggle .mc-cbx input:checked ~ .mc-indicator .mc-toggle-text-off {
+    opacity: 0;
+}
+
+.mc-toggle .mc-cbx input:checked ~ .mc-indicator .mc-toggle-text-on {
+    opacity: 1;
+}
+
+.mc-toggle .mc-cbx input:focus-visible ~ .mc-indicator {
+    box-shadow: 0 0 0 4px var(--ctrl-accent-ring);
+}
+
+.mc-toggle .mc-cbx input:checked ~ .mc-indicator {
+    background: #16a34a; /* checked = green */
+}
+
+    .mc-toggle .mc-cbx input:checked ~ .mc-indicator .mc-thumb {
+        transform: translateX(34px);
+    }
+
+.mc-toggle .mc-cbx input:disabled ~ .mc-indicator {
+    opacity: .5;
+}
+
+/* =========================================================
+   Shared: mandatory error icon — same convention as ModernInput
+   ========================================================= */
+
+.mc-icon-error {
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+}
+
+    .mc-icon-error[data-tooltip] {
+        cursor: help;
+    }
+
+        .mc-icon-error[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 130%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--ctrl-text);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: var(--ctrl-radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            box-shadow: var(--ctrl-shadow-md);
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .mc-icon-error[data-tooltip]:hover::before {
+            content: "";
+            position: absolute;
+            bottom: 118%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--ctrl-text);
+            z-index: 20;
+            pointer-events: none;
+        }

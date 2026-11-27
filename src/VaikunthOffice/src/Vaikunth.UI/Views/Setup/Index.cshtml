@@ -1,0 +1,43 @@
+@model SetupViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Set up Vaikunth Office";
+    var done = ViewData["Done"] is true;
+}
+<partial name="~/Views/Account/_AuthHero.cshtml" />
+
+<div class="vk-window-wrap">
+    <div class="vk-window-orbs" aria-hidden="true"><span class="w1"></span><span class="w2"></span><span class="w3"></span></div>
+    <form method="post" action="/setup" class="vk-window glass" novalidate>
+        <div class="vk-window-top">
+            <div>
+                <div class="vk-eyebrow">First run</div>
+                <h2>Create the super admin</h2>
+                <p class="vk-window-sub">This person runs Vaikunth Office: adds clients, sets their plans and apps.</p>
+            </div>
+            <span class="vk-lock"><i class="fa fa-shield" aria-hidden="true"></i></span>
+        </div>
+
+        @if (Model.MockMode)
+        {
+            <p class="vk-mock-note"><i class="fa fa-flask"></i> Mock mode (no database): the super admin is already there. Sign in with
+                <b>superadmin@vaikunth.local</b> and <b>vaikunth123</b>.</p>
+            <a class="vk-btn vk-btn-grad vk-signin" href="/account/login">Go to sign in <i class="fa fa-arrow-right"></i></a>
+        }
+        else if (done)
+        {
+            <p class="vk-window-sub">Setup is already done. The super admin can sign in.</p>
+            <a class="vk-btn vk-btn-grad vk-signin" href="/account/login">Go to sign in <i class="fa fa-arrow-right"></i></a>
+        }
+        else
+        {
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="vk-form-error" role="alert"></div>
+            <vk-input id="DisplayName" label="Your name" icon="user-o" mandatory="true" value="@Model.DisplayName" autofocus="true" />
+            <vk-input id="Email" label="Email" icon="envelope-o" mandatory="true" value="@Model.Email" input-type="email" autocomplete="username" />
+            <vk-input id="Password" label="Password" is-password="true" mandatory="true" placeholder="At least 8 characters" autocomplete="new-password" />
+            <vk-input id="ConfirmPassword" label="Password again" is-password="true" mandatory="true" autocomplete="new-password" />
+            <button type="submit" class="vk-btn vk-btn-grad vk-signin">Create super admin <i class="fa fa-arrow-right"></i></button>
+        }
+    </form>
+</div>

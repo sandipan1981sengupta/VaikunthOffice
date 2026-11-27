@@ -1,6 +1,6 @@
 namespace Vaikunth.DtoLibrary;
 
-/// <summary>The three apps of Vaikunth Office. The byte value is what the database stores in Vaikunth_Documents.AppKind.</summary>
+/// <summary>The five apps of Vaikunth Office. The byte value is what the database stores in Vaikunth_Documents.AppKind.</summary>
 public enum SuiteApp : byte
 {
     /// <summary>Akshara Pages: documents (Word).</summary>
@@ -8,7 +8,11 @@ public enum SuiteApp : byte
     /// <summary>Hrishikesha Workbook: spreadsheets (Excel).</summary>
     Workbook = 2,
     /// <summary>Vishwaroopa Slides: presentations (PowerPoint).</summary>
-    Slides = 3
+    Slides = 3,
+    /// <summary>Shashvata Reader: PDFs, with notes and bookmarks.</summary>
+    Reader = 4,
+    /// <summary>Dhruva Planner: projects, tasks, board and timeline.</summary>
+    Planner = 5
 }
 
 public static class AppRoles
@@ -32,7 +36,7 @@ public static class AppClaims
     public const string PhotoVersion = "photo_v";
 }
 
-/// <summary>Which of the three apps a client has (Vaikunth_Tenants.AppsEnabled). 7 = all three.</summary>
+/// <summary>Which of the five apps a client has (Vaikunth_Tenants.AppsEnabled). 31 = all five.</summary>
 [Flags]
 public enum SuiteAppFlags : byte
 {
@@ -40,7 +44,9 @@ public enum SuiteAppFlags : byte
     Pages = 1,
     Workbook = 2,
     Slides = 4,
-    All = Pages | Workbook | Slides
+    Reader = 8,
+    Planner = 16,
+    All = Pages | Workbook | Slides | Reader | Planner
 }
 
 public static class SuiteAppFlagsExtensions
@@ -49,7 +55,10 @@ public static class SuiteAppFlagsExtensions
     {
         SuiteApp.Pages => SuiteAppFlags.Pages,
         SuiteApp.Workbook => SuiteAppFlags.Workbook,
-        _ => SuiteAppFlags.Slides
+        SuiteApp.Slides => SuiteAppFlags.Slides,
+        SuiteApp.Reader => SuiteAppFlags.Reader,
+        SuiteApp.Planner => SuiteAppFlags.Planner,
+        _ => SuiteAppFlags.None
     };
 
     public static bool Has(this SuiteAppFlags flags, SuiteApp app) => (flags & app.Flag()) != 0;
