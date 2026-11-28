@@ -3,7 +3,7 @@
     Layout = "_EditorLayout";   // full-window editor frame from Vaikunth.UI
     ViewData["Title"] = Model.Title;
 }
-@section Styles { <link rel="stylesheet" href="~/_content/Vaikunth.ShashvataReader/css/reader.css" asp-append-version="true" /> }
+@section Styles { <vk-bundle name="reader.css" /> }
 
 <vk-app-bar app="reader" doc-title="@Model.Title" user-name="@User.DisplayName()" avatar-tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
 
@@ -67,7 +67,7 @@
             <div class="rd-drop" id="drop">
                 <img src="/_content/Vaikunth.UI/images/app-reader.svg" width="76" height="76" alt="" />
                 <h2>Open a PDF</h2>
-                <p>Drop a PDF here, or pick one from this computer. It's saved in Vaikunth Office so you and your team can read it, add notes and bookmark pages.</p>
+                <p>Drop a PDF here, or pick one from this computer. It's saved in Vaikunth Desk so you and your team can read it, add notes and bookmark pages.</p>
                 <button type="button" class="vk-btn vk-btn-primary" data-cmd="openPdf"><i class="fa fa-folder-open"></i> Choose a PDF</button>
                 <small>Up to 100 MB</small>
             </div>
@@ -103,6 +103,5 @@
 @section Scripts {
     <script id="docData" type="application/json">@Html.Raw(Model.Content.Replace("</", "<\\/"))</script>
     <script>VK.docId = "@Model.DocumentId"; VK.me = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(User.DisplayName()));</script>
-    <script src="~/_content/Vaikunth.ShashvataReader/lib/pdfjs/pdf.min.js"></script>
-    <script src="~/_content/Vaikunth.ShashvataReader/js/reader.js" asp-append-version="true"></script>
+    <vk-bundle name="reader.js" />
 }

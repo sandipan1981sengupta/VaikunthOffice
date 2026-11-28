@@ -11,6 +11,24 @@ public sealed class BillingSettingsDto
     public int GraceDays { get; set; } = 30;
     /// <summary>Block a client automatically when the grace days are over.</summary>
     public bool AutoBlock { get; set; } = true;
+
+    /// <summary>The rules one client follows: its own where it has them, these defaults for the rest.</summary>
+    public BillingSettingsDto For(TenantDto t) => new()
+    {
+        DueDay = t.DueDay ?? DueDay, GraceDays = t.GraceDays ?? GraceDays, AutoBlock = t.AutoBlock ?? AutoBlock
+    };
+}
+
+/// <summary>Payment rules for one client (Payments tab). UseDefault = follow the default rules again.</summary>
+public sealed class ClientRulesRequest
+{
+    public Guid TenantId { get; set; }
+    public bool UseDefault { get; set; }
+    public int DueDay { get; set; } = 10;
+    public int GraceDays { get; set; } = 30;
+    public bool AutoBlock { get; set; } = true;
+    /// <summary>First month the client pays for. Null = leave it as it is.</summary>
+    public DateOnly? BillingFrom { get; set; }
 }
 
 /// <summary>One payment a client made (Vaikunth_Payments).</summary>

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <!-- Vaikunth Office: the ONE website you start. Sign-in, the landing page with the five apps, Clients and People
+  <!-- Vaikunth Desk: the ONE website you start. Sign-in, the landing page with the five apps, Clients and People
        come from Vaikunth.UI; each editor comes from its own project and opens in its own browser tab:
          /pages     Akshara Pages (Word)            Vaikunth.AksharaPages
          /workbook  Hrishikesha Workbook (Excel)    Vaikunth.HrishikeshaWorkbook
@@ -13,7 +13,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Vaikunth.Office.Web</RootNamespace>
     <Version>0.3.0</Version>
-    <Product>Vaikunth Office</Product>
+    <Product>Vaikunth Desk</Product>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +25,8 @@
     <ProjectReference Include="..\Vaikunth.VishwaroopaSlides\Vaikunth.VishwaroopaSlides.csproj" />
     <ProjectReference Include="..\Vaikunth.ShashvataReader\Vaikunth.ShashvataReader.csproj" />
     <ProjectReference Include="..\Vaikunth.DhruvaPlanner\Vaikunth.DhruvaPlanner.csproj" />
+    <ProjectReference Include="..\Vaikunth.VaijayantiDays\Vaikunth.VaijayantiDays.csproj" />
+    <ProjectReference Include="..\Vaikunth.SudarshanaInbox\Vaikunth.SudarshanaInbox.csproj" />
   </ItemGroup>
 
 </Project>

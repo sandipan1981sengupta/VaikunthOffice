@@ -285,9 +285,13 @@ $(document).ready(function () {
         });
     }
 
-    $(".modern-column-chart-canvas").each(function () {
+    // Vaikunth: init(context) draws the charts inside context (default: the page); a chart drawn again replaces the old one,
+    // so it can be called after a part of the page is loaded again.
+    function initCharts(context) {
+    (context ? $(context).find(".modern-column-chart-canvas") : $(".modern-column-chart-canvas")).each(function () {
         var $canvas = $(this);
         var id = $canvas.attr("id");
+        if (chartInstances[id]) { try { chartInstances[id].destroy(); } catch (e) { } delete chartInstances[id]; }
         var labels = [];
 
         try {
@@ -337,6 +341,9 @@ $(document).ready(function () {
             }
         }
     });
+    }
+    window.ModernColumnChart = { init: initCharts };
+    initCharts();
 
     // Usage: setModernColumnChartData("#SalesChart", ["Jan","Feb"], [120, 190]);
     //        setModernColumnChartData("#SalesChart", ["Jan","Feb"], [120, 190], ["#dc2626", "#16a34a"]);

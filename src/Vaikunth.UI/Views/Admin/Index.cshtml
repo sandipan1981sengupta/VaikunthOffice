@@ -6,7 +6,11 @@
 @{
     ViewData["Title"] = "Clients";
     ViewData["Section"] = "admin";
-    Layout = "_AdminLayout";
+    ViewData["AjaxPanel"] = true;   // saves, Refresh and tabs don't reload the page (js/ajax-panel.js)
+    ViewData["FixedShell"] = true;  // header, toolbar and figures stay; only the tabs and what is under them scroll
+    // a request from the page's own script (X-Partial) gets only the content; F5 / a normal visit gets the whole page
+    var partial = ViewData["Partial"] is true;
+    Layout = partial ? "_PanelLayout" : "_AdminLayout";
     var inv = CultureInfo.InvariantCulture;
     var clients = Model.Clients;
     var plans = Model.Plans;
@@ -41,7 +45,7 @@
             ["Bill"] = b.StateText, ["Outstanding"] = b.Outstanding,
             ["Storage"] = $"{Sizes.Bytes(c.StorageUsedBytes)} of {Sizes.Bytes(c.StorageQuotaBytes)}",
             ["Apps"] = string.Join(", ", SuiteApps.All.Where(a => c.Apps.HasFlag(a.App.Flag())).Select(a => a.Kind)),
-            ["Files"] = c.Files, ["Admin"] = c.AdminEmail ?? "", ["Since"] = c.CreatedUtc.ToString("yyyy-MM-dd", inv),
+            ["Files"] = c.Files, ["Admin"] = c.AdminName ?? "", ["AdminEmail"] = c.AdminEmail ?? "", ["Since"] = c.CreatedUtc.ToString("yyyy-MM-dd", inv),
             ["Status"] = c.IsActive ? (c.AdminPending ? "Invited" : "Active") : "Paused",
             // details pane only
             ["initials"] = Names.Initials(c.Name), ["planId"] = c.PlanId, ["apps"] = (int)c.Apps, ["active"] = c.IsActive,
@@ -60,7 +64,9 @@
             ["unpaid"] = b.UnpaidMonths.Select(Money.Month).ToList(), ["unpaidFirst"] = MonthPick(b.OldestUnpaid ?? thisMonth),
             ["paidThisMonth"] = Money.Rupees(b.PaidThisMonth), ["lastPaid"] = b.LastPaidOn is DateOnly lp ? Money.Day(lp) : "Never",
             ["holdUntil"] = b.HoldUntil is DateOnly h && h >= today ? Money.Day(h) : null,
-            ["billingFrom"] = MonthPick(c.BillingFrom), ["billingFromText"] = c.BillingFrom is DateOnly bf ? Money.Month(bf) : "-"
+            ["billingFrom"] = MonthPick(c.BillingFrom), ["billingFromText"] = c.BillingFrom is DateOnly bf ? Money.Month(bf) : "-",
+            // payment rules this client follows (its own, or the default ones)
+            ["ownRules"] = c.HasOwnRules, ["ruleDueDay"] = rules.For(c).DueDay, ["ruleGrace"] = rules.For(c).GraceDays, ["ruleAutoBlock"] = rules.For(c).AutoBlock
         };
     }).ToList();
 
@@ -72,6 +78,7 @@
         {
             ["Id"] = c.TenantId.ToString(), ["Name"] = c.Name, ["Plan"] = c.PlanName, ["Monthly"] = c.MonthlyBill,
             ["Bill"] = b.StateText, ["ThisMonth"] = b.PaidThisMonth, ["Outstanding"] = b.Outstanding,
+            ["Rule"] = $"{Money.Ordinal(rules.For(c).DueDay)} · {(rules.For(c).AutoBlock ? rules.For(c).GraceDays + " days" : "no block")}{(c.HasOwnRules ? " · own" : "")}",
             ["Unpaid"] = b.UnpaidMonths.Count == 0 ? "-" : string.Join(", ", b.UnpaidMonths.Select(Money.Month)),
             ["DueOn"] = Iso(b.State is BillState.Paid or BillState.NotStarted ? b.DueOn : b.DueOn),
             ["BlocksOn"] = b.State is BillState.Overdue or BillState.Due or BillState.Blocked or BillState.OnHold ? Iso(b.BlocksOn) : "",
@@ -101,6 +108,8 @@
 
     var billedClients = clients.Where(c => !c.IsFree).ToList();
     var payClientItems = billedClients.Select(c => (c.TenantId.ToString(), $"{c.Name} · {Money.Rupees(c.MonthlyBill)} a month")).ToList();
+    var ruleClientItems = new List<(string, string)> { ("", "Default rules · every client without its own") };
+    ruleClientItems.AddRange(billedClients.Select(c => (c.TenantId.ToString(), c.Name + (c.HasOwnRules ? " · own rules" : ""))));
     var dueDayItems = Enumerable.Range(1, 28).Select(d => (d.ToString(inv), $"{Money.Ordinal(d)} of every month")).ToList();
     var methodOptions = BillingRules.Methods.Select(m => new Vaikunth.UI.TagHelpers.Modern.ModernRadioOption { Value = m, Text = m }).ToList();
 
@@ -136,7 +145,7 @@
                        tooltip="Email the selected client's admin a link to set their own password" />
     </vk-action-header>
 
-    @if (error is not null) { <div class="vk-banner err"><i class="fa fa-exclamation-circle"></i><span>@error</span></div> }
+    @if (error is not null) { <div hidden data-toast="@error" data-toast-kind="error"></div> }
     @if (ok is not null) { <div hidden data-toast="@ok"></div> }
     @if (!Model.EmailConfigured)
     {
@@ -162,6 +171,8 @@
                 sub="@(billing.Late == 0 ? "nobody is late" : $"{billing.Late} late · {billing.Blocked} blocked")" />
     </section>
 
+    @* ---- everything from the tabs down scrolls; the header, toolbar and figures stay put ---- *@
+    <div class="vk-ws-scroll">
     @* ---- three views: clients, payments and plans ---- *@
     <vk-tabs id="adminTabs" active="@Model.Tab">
         <vk-tab key="clients" text="Clients" icon="building-o" badge="@clients.Count.ToString()" hint="Select a client to see its details, its bill and change its plan." />
@@ -179,14 +190,14 @@
                           is-animated-scrolling="true" row-height="52px" header-height="44px" row-font-size="13.5px"
                           row-id-field="Id" table-height="520px" items="clientRows">
                 <column field="Id" header="Id" visible="false" filterable="false" sortable="false"></column>
-                <column field="Name" header="Company" width="190px"></column>
+                <column field="Name" header="Company" width="160px"></column>
                 <column field="Slug" header="Short name" width="130px" visible="false"></column>
                 <column field="Plan" header="Plan" type="badge" width="110px" badge-default-color="#EEF0FB">
                     <badge value="Starter" color="#EEF0F6"></badge>
                     <badge value="Business" color="#E3E5FB"></badge>
                     <badge value="Enterprise" color="#FBE3EF"></badge>
                 </column>
-                <column field="Licenses" header="Licenses" width="100px" cell-align="right" header-align="right"></column>
+                <column field="Licenses" header="Licenses" width="90px" cell-align="right" header-align="right"></column>
                 <column field="Monthly" header="Monthly bill" width="120px" cell-align="right" header-align="right" format="₹C0"></column>
                 <column field="Bill" header="Payment" type="badge" width="120px">
                     <badge value="Paid" color="#DDF3EA"></badge>
@@ -198,10 +209,11 @@
                     <badge value="Not started" color="#EEF0F6"></badge>
                 </column>
                 <column field="Outstanding" header="Unpaid" width="110px" cell-align="right" header-align="right" format="₹C0" visible="false"></column>
-                <column field="Storage" header="Storage" width="160px"></column>
+                <column field="Storage" header="Storage" width="135px"></column>
                 <column field="Apps" header="Apps" width="200px" visible="false"></column>
-                <column field="Files" header="Files" width="80px" cell-align="right" header-align="right"></column>
-                <column field="Admin" header="Admin" width="200px" visible="false"></column>
+                <column field="Files" header="Files" width="65px" cell-align="right" header-align="right"></column>
+                <column field="Admin" header="Admin" width="130px"></column>
+                <column field="AdminEmail" header="Admin email" width="200px"></column>
                 <column field="Since" header="Client since" width="120px" format="dd-mm-yyyy" visible="false"></column>
                 <column field="Status" header="Status" type="badge" width="100px">
                     <badge value="Active" color="#DDF3EA"></badge>
@@ -264,7 +276,7 @@
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="tenantId" id="planTenant" />
                         <div class="vk-insp-label">Change plan</div>
-                        <modern-dropdown-with-label id="selPlanPick" name="planId" label="New plan" placeholder="Pick a plan" items="planItems" border-radius="12"></modern-dropdown-with-label>
+                        <modern-dropdown-with-label id="selPlanPick" name="planId" label="New plan" placeholder="Pick a plan" items="planItems"></modern-dropdown-with-label>
                         <button type="submit" class="vk-btn vk-btn-grad vk-block"><i class="fa fa-check" aria-hidden="true"></i> Apply plan</button>
                         <span class="vk-insp-note">Licenses stay as they are; storage and the price become the new plan's.</span>
                     </form>
@@ -284,15 +296,28 @@
     @* ---- payments: rules, money per month, who paid, every payment ---- *@
     <section class="vk-pane" data-pane="payments" hidden>
         <div class="vk-pay-top">
-            <form method="post" action="/admin/billing" class="vk-pay-rules vk-glass-card" id="rulesForm">
+            <form method="post" action="/admin/billing" class="vk-pay-rules vk-glass-card" id="rulesForm"
+                  data-default-due="@rules.DueDay.ToString(inv)" data-default-grace="@rules.GraceDays.ToString(inv)" data-default-block="@(rules.AutoBlock ? "true" : "false")">
                 @Html.AntiForgeryToken()
+                <input type="hidden" name="tenantId" id="ruleTenant" value="" />
+                <input type="hidden" name="useDefault" id="ruleUseDefault" value="false" />
                 <h3 class="vk-card-title"><i class="fa fa-calendar-check-o" aria-hidden="true"></i> Payment <span>rules</span></h3>
+                <modern-dropdown-with-label id="ruleClient" name="_ruleClient" label="Rules for" placeholder="Default rules"
+                                            items="ruleClientItems" value="" menu-height="260px"></modern-dropdown-with-label>
+                <div id="ruleOwnWrap" hidden>
+                    <modern-checkbox id="ruleOwnToggle" name="_ruleOwn" label="Own rules for this client" is-toggle-button="true" checked="false" label-font-size="13.5px"
+                                     desc-text="Off = this client follows the default rules."></modern-checkbox>
+                </div>
                 <modern-dropdown-with-label id="ruleDueDay" name="dueDay" label="Payment is due on" placeholder="Pick a day" required="true"
-                                            value="@rules.DueDay.ToString(inv)" items="dueDayItems" menu-height="240px" border-radius="12"></modern-dropdown-with-label>
+                                            value="@rules.DueDay.ToString(inv)" items="dueDayItems" menu-height="240px"></modern-dropdown-with-label>
                 <modern-input id="ruleGrace" name="graceDays" label="Days a late client keeps working (after the due day)" mandatory="true" input-type="int" max-length="3"
                               value="@rules.GraceDays.ToString(inv)" placeholder="30" label-font-size="13.5px"></modern-input>
                 <modern-checkbox id="ruleAutoBlock" name="autoBlock" label="Block automatically" is-toggle-button="true" checked="@rules.AutoBlock" label-font-size="13.5px"
                                  desc-text="When those days are over, nobody of that client can sign in until you record the payment or let them in again."></modern-checkbox>
+                <div id="ruleFromWrap" hidden>
+                    <modern-month-year-picker id="ruleFrom" name="billingMonth" label="First month it pays for" placeholder="mm-yyyy"></modern-month-year-picker>
+                </div>
+                <p class="vk-group-note" id="ruleNote">These rules are for every client that has no rules of its own.</p>
                 <p class="vk-group-note"><i class="fa fa-info-circle"></i> Each client pays licenses × its plan's price, every month.
                     Clients on a free plan (price 0) are never billed or blocked.</p>
                 <button type="submit" class="vk-btn vk-btn-grad"><i class="fa fa-floppy-o" aria-hidden="true"></i> Save rules</button>
@@ -330,6 +355,7 @@
                     <badge value="Blocked" color="#FDD9CD"></badge>
                     <badge value="Not started" color="#EEF0F6"></badge>
                 </column>
+                <column field="Rule" header="Due day · block" width="170px"></column>
                 <column field="ThisMonth" header="Paid this month" width="130px" cell-align="right" header-align="right" format="₹C0"></column>
                 <column field="Outstanding" header="Unpaid" width="110px" cell-align="right" header-align="right" format="₹C0"></column>
                 <column field="Unpaid" header="Unpaid months" width="170px"></column>
@@ -405,6 +431,7 @@
             </div>
         </div>
     </section>
+    </div>
 </div>
 
 @* hidden form the toolbar uses for Pause / Resume and Email admin link *@
@@ -422,7 +449,7 @@
         <modern-input id="Name" name="Name" label="Company name" mandatory="true" placeholder="Acme Corp" max-length="120" label-font-size="13.5px"></modern-input>
         <div class="vk-form-2">
             <modern-input id="Slug" name="Slug" label="Short name" mandatory="true" placeholder="acme" max-length="39" label-font-size="13.5px"></modern-input>
-            <modern-dropdown-with-label id="PlanId" name="PlanId" label="Plan" required="true" value="@firstPlan.ToString(inv)" items="planItems" border-radius="12"></modern-dropdown-with-label>
+            <modern-dropdown-with-label id="PlanId" name="PlanId" label="Plan" required="true" value="@firstPlan.ToString(inv)" items="planItems"></modern-dropdown-with-label>
         </div>
         <div class="vk-form-2">
             <modern-input id="Licenses" name="Licenses" label="Licenses (number of users)" mandatory="true" input-type="int" label-font-size="13.5px"
@@ -433,10 +460,8 @@
         <vk-app-picker name="apps" value="@((int)SuiteAppFlags.All)" label="Apps for this client" id-prefix="new" />
     </vk-group>
     <vk-group title="Client|admin">
-        <div class="vk-form-2">
-            <modern-input id="AdminName" name="AdminName" label="Admin name" mandatory="true" placeholder="Priya Sharma" max-length="120" label-font-size="13.5px"></modern-input>
-            <modern-input id="AdminEmail" name="AdminEmail" label="Admin email" mandatory="true" placeholder="admin@acme.com" max-length="200" label-font-size="13.5px"></modern-input>
-        </div>
+        <modern-input id="AdminName" name="AdminName" label="Admin name" mandatory="true" placeholder="Priya Sharma" max-length="120" label-font-size="13.5px"></modern-input>
+        <modern-input id="AdminEmail" name="AdminEmail" label="Admin email" mandatory="true" placeholder="admin@acme.com" max-length="200" label-font-size="13.5px"></modern-input>
         <input type="hidden" name="SendInvite" id="SendInvite" value="true" />
         <modern-checkbox id="SendInviteToggle" name="_sendInviteToggle" label="Email the admin a set-password link" is-toggle-button="true" checked="true" label-font-size="13.5px"
                          desc-text="They open the link, choose their own password, then sign in and add their office. The link works once and lasts 7 days."></modern-checkbox>
@@ -448,13 +473,13 @@
 </vk-dialog>
 
 @* ---- Edit client ---- *@
-<vk-dialog id="editClient" title="Edit client" subtitle="Name, plan, licenses, storage, apps, billing and status." icon="pencil"
+<vk-dialog id="editClient" title="Edit client" subtitle="Name, plan, admin, licenses, storage, apps, billing and status." icon="pencil"
            ok-text="Save changes" ok-icon="check" cancel-text="Cancel" action="/admin/update" width="660px">
     @Html.AntiForgeryToken()
     <input type="hidden" name="TenantId" id="EditTenantId" />
     <vk-group title="Company|details">
         <modern-input id="EditName" name="Name" label="Company name" mandatory="true" max-length="120" label-font-size="13.5px"></modern-input>
-        <modern-dropdown-with-label id="EditPlanId" name="PlanId" label="Plan" required="true" items="planItems" border-radius="12"></modern-dropdown-with-label>
+        <modern-dropdown-with-label id="EditPlanId" name="PlanId" label="Plan" required="true" items="planItems"></modern-dropdown-with-label>
     </vk-group>
     <vk-group title="Limits|for this client">
         <div class="vk-form-2">
@@ -462,6 +487,11 @@
             <modern-input id="EditStorage" name="StorageQuotaMbOverride" label="Storage in MB (blank = plan's)" input-type="int" label-font-size="13.5px"></modern-input>
         </div>
         <vk-app-picker name="apps" value="@((int)SuiteAppFlags.All)" label="Apps for this client" id-prefix="edit" />
+    </vk-group>
+    <vk-group title="Client admin|who runs it" id="editAdminGroup">
+        <modern-input id="EditAdminName" name="AdminName" label="Admin name" mandatory="true" max-length="120" label-font-size="13.5px"></modern-input>
+        <modern-input id="EditAdminEmail" name="AdminEmail" label="Admin email" mandatory="true" max-length="200" label-font-size="13.5px"></modern-input>
+        <p class="vk-group-note" id="editAdminNote">-</p>
     </vk-group>
     <vk-group title="Billing|and status">
         <div class="vk-form-2">
@@ -473,23 +503,7 @@
     </vk-group>
 </vk-dialog>
 
-@* ---- Delete client: type the short name to confirm ---- *@
-<vk-dialog id="deleteClient" title="Delete client" subtitle="This can't be undone." icon="trash"
-           ok-text="Delete forever" ok-icon="trash" ok-tone="danger" ok-id="delSubmit" cancel-text="Cancel" action="/admin/delete" width="520px">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="tenantId" id="delTenant" />
-    <div class="vk-danger-box">
-        <strong>Deleting <span id="delName">this client</span> removes for good:</strong>
-        <ul>
-            <li><span id="delUsers">All</span> people, their sign-ins and profile photos</li>
-            <li>All their documents, decks, workbooks, PDFs and projects (<span id="delFiles">-</span> files, <span id="delStorage">-</span>) from the server</li>
-            <li>The list of files, shares and stars, and its payments, in the database</li>
-        </ul>
-        <span>Want to keep the data? Leave the client paused instead.</span>
-    </div>
-    <modern-input id="delConfirm" name="confirmSlug" label="Type the short name to confirm" mandatory="true" max-length="40" label-font-size="13.5px"></modern-input>
-    <p class="vk-group-note">Type <b id="delSlug">-</b> exactly.</p>
-</vk-dialog>
+
 
 @* ---- Record payment ---- *@
 <vk-dialog id="paymentDialog" title="Record payment" subtitle="Note money a client has paid. It counts towards the month you pick."
@@ -497,7 +511,7 @@
     @Html.AntiForgeryToken()
     <input type="hidden" name="tab" id="payTab" value="clients" />
     <vk-group title="Who|paid">
-        <modern-dropdown-with-label id="payClient" name="tenantId" label="Client" placeholder="Pick the client" required="true" items="payClientItems" menu-height="220px" border-radius="12"></modern-dropdown-with-label>
+        <modern-dropdown-with-label id="payClient" name="tenantId" label="Client" placeholder="Pick the client" required="true" items="payClientItems" menu-height="220px"></modern-dropdown-with-label>
         <div class="vk-pay-hint" id="payHint" hidden></div>
     </vk-group>
     <vk-group title="The|money">
@@ -529,24 +543,21 @@
     <button type="submit" name="clear" value="true" class="vk-link-btn" id="holdClear" formnovalidate hidden><i class="fa fa-times"></i> Take the hold off now</button>
 </vk-dialog>
 
-@* ---- Delete payment ---- *@
-<vk-dialog id="deletePayment" title="Delete payment" subtitle="Only if it was noted by mistake." icon="times-circle"
-           ok-text="Delete payment" ok-icon="trash" ok-tone="danger" cancel-text="Cancel" action="/admin/payments/delete" width="480px">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="paymentId" id="delPayId" />
-    <div class="vk-danger-box"><strong id="delPayText">-</strong><span>That month counts as unpaid again, so the client may show as late.</span></div>
-</vk-dialog>
+
+
+@* the page script's settings: in the content, so a content-only reload brings the new ones *@
+<script type="application/json" id="adminCfg">@Html.Raw(JsonSerializer.Serialize(new
+{
+    perPlan = plans.ToDictionary(p => p.PlanId.ToString(), p => new { users = p.MaxUsers, price = p.PricePerUser, name = p.Name }),
+    appNames = SuiteApps.All.Select(a => new { flag = (int)a.App.Flag(), name = a.Kind }),
+    selected = Model.Selected,
+    tab = Model.Tab,
+    thisMonth = MonthPick(thisMonth),
+    graceDays = rules.GraceDays,
+    autoBlock = rules.AutoBlock
+}).Replace("</", "<\\/"))</script>
 
 @section Scripts {
-    <script src="~/_content/Vaikunth.UI/js/admin.js" asp-append-version="true"></script>
-    <script>
-        VKAdmin.init({
-            perPlan: @Html.Raw(JsonSerializer.Serialize(plans.ToDictionary(p => p.PlanId.ToString(), p => new { users = p.MaxUsers, price = p.PricePerUser, name = p.Name }))),
-            appNames: @Html.Raw(JsonSerializer.Serialize(SuiteApps.All.Select(a => new { flag = (int)a.App.Flag(), name = a.Kind }))),
-            selected: @Html.Raw(JsonSerializer.Serialize(Model.Selected)),
-            thisMonth: "@MonthPick(thisMonth)",
-            graceDays: @rules.GraceDays,
-            autoBlock: @(rules.AutoBlock ? "true" : "false")
-        });
-    </script>
+    <vk-bundle name="admin.js" />
+    <script>VKAdmin.init();</script>
 }

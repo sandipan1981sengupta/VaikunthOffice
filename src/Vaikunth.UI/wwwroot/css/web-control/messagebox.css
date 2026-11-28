@@ -1,0 +1,336 @@
+/* ==========================================================================
+   Message Box / Confirmation Dialog control
+   Matches: dark gradient header, white body, light-gray footer, circular X
+   ========================================================================== */
+
+/* Darkness of the page behind every message box: change this one value to make it lighter or darker */
+:root {
+    --mb-backdrop: rgba(0, 0, 0, 0.45);
+}
+
+.mb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    /* Above everything on the page, including the full-page Add/Edit window,
+       but just below the loading pill (tableLoader.js uses 2147482999 / 2147483000). */
+    z-index: 2147482000;
+    background: var(--mb-backdrop);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+    .mb-overlay.mb-visible {
+        display: flex;
+        animation: mb-overlay-in .3s ease-out forwards;
+    }
+
+    .mb-overlay.mb-closing {
+        animation: mb-overlay-out .28s ease-in forwards;
+    }
+
+    .mb-overlay.mb-dragging {
+        cursor: move;
+    }
+
+        .mb-overlay.mb-dragging .mb-dialog {
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+@keyframes mb-overlay-in {
+    from {
+        background-color: rgba(0, 0, 0, 0);
+    }
+
+    to {
+        background-color: var(--mb-backdrop);
+    }
+}
+
+@keyframes mb-overlay-out {
+    from {
+        background-color: var(--mb-backdrop);
+    }
+
+    to {
+        background-color: rgba(0, 0, 0, 0);
+    }
+}
+
+.mb-dialog {
+    width: 100%;
+    max-width: 700px;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    animation: mb-slide-up-in .32s cubic-bezier(.22, 1, .36, 1) forwards;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    /* Single shared glass layer for the whole dialog — header/body/footer
+       sit on top of this as tinted overlays, not separate blurs, so the
+       backdrop reads as one continuous pane of glass. */
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    /* Let JS drive dragging via transform without CSS transitions fighting it. */
+    transition: none;
+    /* Current drag offset, kept in sync by JS. Defaults to no offset so
+       the entrance animation and non-dragged closes behave as before. */
+    --mb-drag-x: 0px;
+    --mb-drag-y: 0px;
+}
+
+.mb-overlay.mb-closing .mb-dialog {
+    /* Start the close animation from wherever the dialog currently is
+           (its drag offset), not from the centered "home" position — this
+           avoids a visible jump-to-center before sliding down. */
+    animation: mb-slide-down-out .26s cubic-bezier(.4, 0, 1, 1) forwards;
+}
+
+@keyframes mb-slide-up-in {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes mb-slide-down-out {
+    from {
+        opacity: 1;
+        transform: translate(var(--mb-drag-x), var(--mb-drag-y));
+    }
+
+    to {
+        opacity: 0;
+        transform: translate(var(--mb-drag-x), calc(var(--mb-drag-y) + 40px));
+    }
+}
+
+/* Respect reduced-motion preferences: fall back to a simple fade. */
+@media (prefers-reduced-motion: reduce) {
+    .mb-overlay.mb-visible,
+    .mb-overlay.mb-closing,
+    .mb-dialog,
+    .mb-overlay.mb-closing .mb-dialog {
+        animation: mb-fade-only .15s ease-out forwards !important;
+    }
+
+    @keyframes mb-fade-only {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+}
+
+/* ---- Header (transparent glass, also acts as the drag handle) ---- */
+.mb-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    color: #ffffff;
+    background: rgb(255, 255, 255, 0.68); /* neutral, no color cast */
+    /*background: linear-gradient(135deg, rgba(75, 90, 114, 0.35) 0%, rgba(42, 53, 71, 0.35) 100%);*/
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+}
+
+.mb-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mb-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: #ffffff;
+}
+
+.mb-icon-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.mb-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.mb-close-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    font-size: 1.1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform .12s ease, background .12s ease;
+}
+
+    .mb-close-btn:hover {
+        background: rgba(255, 255, 255, 0.4);
+        transform: scale(1.05);
+    }
+
+    .mb-close-btn span {
+        margin-top: -2px;
+    }
+
+/* ---- Body (mostly opaque white) ---- */
+.mb-body {
+    padding: 48px 32px;
+    min-height: 180px;
+    text-align: center;
+    font-size: 1.15rem;
+    color: #1a1a1a;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+/* ---- Footer (transparent glass, matches header) ---- */
+.mb-footer {
+    padding: 16px 24px;
+    background: rgba(255, 255, 255, 0.40);
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.mb-ok-btn {
+    padding: 10px 30px;
+    border: none;
+    border-radius: 999px; /* pill shape */
+    min-width: 120px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    background: linear-gradient(79deg, rgba(240, 0, 188, .7) 0%, rgba(0, 107, 247, .5) 100%);
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background .12s ease;
+}
+
+    .mb-ok-btn:hover {
+        background: linear-gradient(79deg,rgba(0, 107, 247, .8) 0%, rgba(240, 0, 188, .8) 100%);
+    }
+
+/* ---- Type variants (header tint overrides only — body/footer stay neutral glass) ---- */
+.mb-type-success .mb-header {
+    margin: 5px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(47, 158, 111, 0.4) 0%, rgba(28, 110, 76, 0.4) 100%);
+}
+
+.mb-type-warning .mb-header {
+    margin: 5px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(217, 164, 65, 0.4) 0%, rgba(179, 120, 31, 0.4) 100%);
+}
+
+.mb-type-error .mb-header {
+    margin: 5px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgb(150, 10, 0, 0.45) 0%, rgb(205, 14, 0, 0.45) 100%);
+}
+
+/* Fallback for browsers without backdrop-filter support (older Firefox/Safari) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .mb-dialog {
+        background: #ffffff;
+    }
+
+    .mb-header {
+        background: linear-gradient(135deg, #4b5a72 0%, #2a3547 100%);
+    }
+
+    .mb-body {
+        background: #ffffff;
+    }
+
+    .mb-footer {
+        background: #d4d4d4;
+    }
+
+    .mb-type-success .mb-header {
+        background: linear-gradient(135deg, #2f9e6f 0%, #1c6e4c 100%);
+    }
+
+    .mb-type-warning .mb-header {
+        background: linear-gradient(135deg, #d9a441 0%, #b3781f 100%);
+    }
+
+    .mb-type-error .mb-header {
+        background: linear-gradient(135deg, #c0483f 0%, #8f2f28 100%);
+    }
+}
+
+/* ---- Confirmation box buttons (confirmMessageBox) ---- */
+.mb-cancel-btn {
+    padding: 10px 30px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 999px; /* pill shape */
+    min-width: 120px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    background: rgba(255, 255, 255, 0.75);
+    color: #1a1a1a;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease;
+}
+
+    .mb-cancel-btn:hover {
+        background: #ffffff;
+        border-color: rgba(0, 0, 0, 0.22);
+    }
+
+/* Red confirm button for destructive actions such as delete */
+.mb-ok-btn.mb-danger-btn {
+    background: linear-gradient(90deg, #d32f2f 0%, #b71c1c 100%);
+}
+
+    .mb-ok-btn.mb-danger-btn:hover {
+        background: linear-gradient(90deg, #e53935 0%, #c62828 100%);
+    }
+
+.mb-cancel-btn:focus-visible,
+.mb-ok-btn:focus-visible {
+    outline: 2px solid rgba(0, 107, 247, .7);
+    outline-offset: 2px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 600px) {
+    .mb-dialog {
+        max-width: 100%;
+    }
+
+    .mb-body {
+        padding: 32px 20px;
+        font-size: 1rem;
+    }
+
+    .mb-title {
+        font-size: 1.05rem;
+    }
+}

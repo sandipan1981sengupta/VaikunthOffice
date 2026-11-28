@@ -1,4 +1,4 @@
-/* Vaikunth Office · small shared behaviour for every page: ribbon tabs, menus, dialogs, password eye,
+/* Vaikunth Desk · small shared behaviour for every page: ribbon tabs, menus, dialogs, password eye,
    toast, zoom, and a save helper the three editors use. Exposed as window.VK. */
 (function () {
     "use strict";
@@ -81,7 +81,17 @@
 
     // ---- toast ----
     var toastTimer;
-    VK.toast = function (text) {
+    // VK.toast(text, kind, options): ShankhNaad's toast in the top-right corner (toast.js), sliding in, closing by itself
+    // (hover pauses it, x closes it). kind: success | info | warning | error. Without toast.js the old bottom pill is used.
+    VK.toast = function (text, kind, options) {
+        if (typeof window.ShowToast === "function") {
+            kind = kind || (/^(couldn't|can't|not |no |that didn't|error)/i.test(text || "") ? "error" : "info");
+            options = options || {};
+            if (!options.duration) options.duration = kind === "error" ? 9000 : Math.max(3500, Math.min(8000, (text || "").length * 60));
+            if (!options.title) options.title = { success: "Done", info: "Vaikunth Desk", warning: "Please check", error: "Not done" }[kind];
+            window.ShowToast(text, kind, options);
+            return;
+        }
         var t = document.getElementById("toast");
         if (!t) return;
         t.textContent = text;
@@ -186,6 +196,19 @@
         return job.then(function () { done(); VK.toast("Downloaded " + name + "."); })
             .catch(function (e) { done(); VK.toast("Couldn't make the file: " + (e && e.message ? e.message : e)); });
     };
+
+    // Opened from the home page's Download (…/editor?id=…&download=1): make the file as soon as the editor is ready
+    if (/[?&]download=1\b/.test(location.search)) {
+        window.addEventListener("load", function () {
+            var tries = 0;
+            (function go() {
+                if (VK.getContent) {
+                    try { var u = new URL(location.href); u.searchParams.delete("download"); history.replaceState(null, "", u); } catch (e) { }
+                    VK.exportFile();
+                } else if (tries++ < 40) setTimeout(go, 150);
+            })();
+        });
+    }
 
     // ---- saving (the three editors call VK.save(getContent)) ----
     VK.docId = null;

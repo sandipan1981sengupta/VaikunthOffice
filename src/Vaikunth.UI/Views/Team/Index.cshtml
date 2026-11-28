@@ -1,153 +1,218 @@
 @model TeamViewModel
+@using System.Globalization
+@using System.Text.Json
 @{
     ViewData["Title"] = "People";
+    ViewData["Section"] = "team";
+    ViewData["HeadSub"] = User.TenantName();
+    ViewData["AjaxPanel"] = true;   // saves and Refresh don't reload the page (js/ajax-panel.js)
+    var partial = ViewData["Partial"] is true;
+    ViewData["FixedShell"] = true;  // header, toolbar and figures stay; the list and the details scroll
+    Layout = partial ? "_PanelLayout" : "_AdminLayout";
+    var inv = CultureInfo.InvariantCulture;
     var c = Model.Company;
-}
-<section class="vk-admin-head">
-    <div>
-        <div class="vk-eyebrow"><i class="fa fa-building-o"></i> @User.TenantName()</div>
-        <h1>People</h1>
-        <p class="vk-muted">Add the people in your office. Each one gets an email with a link to set their own password.</p>
-    </div>
-    <button type="button" class="vk-btn vk-btn-grad" data-open-dialog="inviteDialog"><i class="fa fa-user-plus"></i> Add people</button>
-</section>
+    var people = Model.People;
+    var active = people.Count(p => p.IsActive);
+    var invited = people.Count(p => p.Status == "Invited");
+    var off = people.Count(p => p.Status == "Off");
+    var admins = people.Count(p => p.Role == AppRoles.TenantAdmin && p.IsActive);
+    var ok = TempData["Ok"] as string;
+    var error = TempData["Error"] as string;
 
-@if (TempData["Ok"] is string ok) { <div class="vk-banner ok"><i class="fa fa-check-circle"></i> @ok</div> }
-@if (TempData["Error"] is string err) { <div class="vk-banner err"><i class="fa fa-exclamation-circle"></i> @err</div> }
-@if (!Model.EmailConfigured)
-{
-    <div class="vk-banner info"><i class="fa fa-flask"></i> Email isn't set up on this server yet, so emails go to the developer outbox instead of being sent.
-        <a class="vk-link" href="/dev/outbox" target="_blank">Open the outbox</a></div>
+    // a round picture for the grid: the person's photo, or their initials on their colour
+    string[][] tones = [["#2B2F86", "#4F55C8"], ["#115C45", "#22A37A"], ["#C24A1C", "#E8956A"], ["#0F7C7A", "#14A3A0"], ["#8A5A00", "#E8B04B"], ["#6D28D9", "#A78BFA"]];
+    string Face(TeamMemberDto p)
+    {
+        if (UserExtensions.PhotoUrl(p.UserId, p.PhotoVersion) is string url) return url;
+        var t = tones[Math.Abs(p.AvatarTone) % tones.Length];
+        var ini = System.Net.WebUtility.HtmlEncode(Names.Initials(p.DisplayName));
+        var svg = $"<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='{t[0]}'/><stop offset='1' stop-color='{t[1]}'/></linearGradient></defs><rect width='64' height='64' rx='32' fill='url(#g)'/><text x='32' y='41' font-family='Segoe UI,Arial,sans-serif' font-size='24' font-weight='700' fill='#fff' text-anchor='middle'>{ini}</text></svg>";
+        return "data:image/svg+xml;charset=utf-8," + Uri.EscapeDataString(svg);
+    }
+
+    var rows = people.Select(p => new Dictionary<string, object?>
+    {
+        ["Id"] = p.UserId.ToString(), ["Face"] = Face(p),
+        ["Name"] = p.DisplayName + (p.UserId == Model.Me ? " (you)" : ""), ["Email"] = p.Email,
+        ["Department"] = p.Department ?? "", ["JobTitle"] = p.JobTitle ?? "",
+        ["Role"] = p.Role == AppRoles.TenantAdmin ? "Admin" : "Member",
+        ["Status"] = p.Status == "Off" ? "Switched off" : p.Status,
+        ["Joined"] = p.JoiningDate?.ToString("yyyy-MM-dd", inv) ?? "",
+        ["LastSignIn"] = p.LastLoginUtc is DateTime l ? UserExtensions.Ago(l) : "Never",
+        ["Added"] = p.CreatedUtc.ToString("yyyy-MM-dd", inv),
+        // details pane only
+        ["name"] = p.DisplayName, ["me"] = p.UserId == Model.Me, ["tone"] = Math.Abs(p.AvatarTone) % tones.Length,
+        ["initials"] = Names.Initials(p.DisplayName), ["photo"] = UserExtensions.PhotoUrl(p.UserId, p.PhotoVersion),
+        ["admin"] = p.Role == AppRoles.TenantAdmin, ["active"] = p.IsActive, ["invitedState"] = p.IsInvited,
+        ["joined"] = p.JoiningDate?.ToString("dd-MM-yyyy", inv) ?? "", ["joinedText"] = p.JoiningDate?.ToString("d MMM yyyy", inv) ?? "Not set",
+        ["addedText"] = UserExtensions.Ago(p.CreatedUtc) + (p.InvitedByName is null ? "" : $" by {p.InvitedByName}"),
+        ["lastText"] = p.LastLoginUtc is DateTime ll ? UserExtensions.Ago(ll) : "Never signed in"
+    }).ToList();
+
+    var roleItems = new List<(string, string)>
+    {
+        (AppRoles.Member, "Member · uses the apps"),
+        (AppRoles.TenantAdmin, "Admin · can also add and manage people")
+    };
+    var seatPct = c is null || c.MaxUsers <= 0 ? 0d : Math.Min(100d, c.ActiveUsers * 100d / c.MaxUsers);
+    var storePct = c is null || c.StorageQuotaBytes <= 0 ? 0d : Math.Min(100d, c.StorageUsedBytes * 100d / c.StorageQuotaBytes);
+    string PctText(double v) => v <= 0 ? "0%" : v < 0.1 ? "less than 0.1%" : v < 10 ? v.ToString("0.0", inv) + "%" : Math.Round(v).ToString(inv) + "%";
 }
 
-@if (c is not null)
-{
-    <section class="vk-stats vk-stats-3">
-        <vk-stat-card icon="id-card-o" label="Licenses used" value="@($"{c.ActiveUsers} of {c.MaxUsers}")" sub="@($"{Math.Max(0, c.MaxUsers - c.ActiveUsers)} free · {c.PlanName} plan")" tone="navy" />
-        <vk-stat-card icon="envelope-o" label="Waiting to join" value="@(ViewData["InvitedCount"]?.ToString())" sub="invited, no password yet" tone="gold" />
-        <vk-stat-card icon="database" label="Storage" value="@Sizes.Bytes(c.StorageUsedBytes)" sub="@($"of {Sizes.Bytes(c.StorageQuotaBytes)}")" tone="green" />
+<div class="vk-admin-ws vk-team-ws">
+    @* ---- title bar and toolbar ---- *@
+    <vk-action-header id="TeamHeader" heading="People" icon="users"
+                      subtitle="@($"{User.TenantName()} · {people.Count} {(people.Count == 1 ? "person" : "people")}{(c is null ? "" : $" · {c.PlanName} plan")}")">
+        <vk-action-btn text="Refresh" icon="refresh" cmd="refresh" tone="blue" tooltip="Load the latest list" />
+        <vk-action-btn text="Add person" icon="user-plus" cmd="addPerson" tone="blue" tooltip="Invite someone from your office by email" />
+        <vk-action-btn text="Edit" icon="pencil" cmd="editPerson" tone="amber" tooltip="Change the selected person's name, department, job title or joining date" />
+        <vk-action-btn text="Send link" icon="paper-plane" cmd="sendLink" tone="green" separator="true"
+                       tooltip="Invited: send the invite again. Signed up: email a link to choose a new password." />
+        <vk-action-btn text="Make admin" icon="id-badge" cmd="toggleRole" tone="violet" tooltip="Make the selected person an admin, or a member again" />
+        <vk-action-btn text="Switch off" icon="ban" cmd="toggleActive" tone="red" tooltip="Stop the selected person signing in, or let them in again. Their files stay." />
+        <vk-action-btn text="Export" icon="file-excel-o" cmd="exportGrid" tone="green" separator="true" tooltip="Download the list as a CSV file for Excel" />
+        <vk-action-btn text="Print" icon="print" cmd="print" tone="slate" tooltip="Print this page" />
+    </vk-action-header>
+
+    @if (error is not null) { <div hidden data-toast="@error" data-toast-kind="error"></div> }
+    @if (ok is not null) { <div hidden data-toast="@ok"></div> }
+    @if (!Model.EmailConfigured)
+    {
+        <div class="vk-banner info"><i class="fa fa-flask"></i><span>Email isn't set up on this server yet, so emails go to the developer outbox instead of being sent.</span>
+            <a class="vk-link" href="/dev/outbox" target="_blank">Open the outbox</a></div>
+    }
+    @if (c is not null && c.ActiveUsers >= c.MaxUsers)
+    {
+        <div class="vk-banner warn"><i class="fa fa-exclamation-triangle"></i>
+            <span><b>All @c.MaxUsers licenses are in use.</b> Switch someone off, or ask Vaikunth Desk for more licenses, before adding people.</span></div>
+    }
+
+    @* ---- key figures ---- *@
+    <section class="vk-kpis vk-kpis-5 vk-glass-card" aria-label="Summary">
+        <vk-kpi icon="users" tone="blue" label="People" value="@people.Count.ToString()" dot="@($"{active} can sign in")" sub="@($"{admins} {(admins == 1 ? "admin" : "admins")}")" />
+        <vk-kpi icon="id-card-o" tone="violet" label="Licenses used" value="@(c is null ? "-" : $"{c.ActiveUsers} of {c.MaxUsers}")" percent="@seatPct" percent-text="@PctText(seatPct)"
+                sub="@(c is null ? "" : $"{Math.Max(0, c.MaxUsers - c.ActiveUsers)} free")" />
+        <vk-kpi icon="envelope-o" tone="amber" label="Waiting to join" value="@invited.ToString()" sub="invited, no password yet" />
+        <vk-kpi icon="ban" tone="pink" label="Switched off" value="@off.ToString()" sub="can't sign in · files kept" />
+        <vk-kpi icon="hdd-o" tone="green" label="Storage" value="@(c is null ? "-" : Sizes.Bytes(c.StorageUsedBytes))" percent="@storePct" percent-text="@PctText(storePct)"
+                sub="@(c is null ? "" : $"of {Sizes.Bytes(c.StorageQuotaBytes)}")" />
     </section>
-}
 
-<section class="vk-recent glass-soft">
-    <div class="vk-recent-head">
-        <h2>Everyone at @User.TenantName()</h2>
-        <nav class="vk-chips">
-            <a class="@(Model.Show == "all" ? "on" : "")" href="/team">All @ViewData["AllCount"]</a>
-            <a class="@(Model.Show == "invited" ? "on" : "")" href="/team?show=invited">Invited @ViewData["InvitedCount"]</a>
-            <a class="@(Model.Show == "off" ? "on" : "")" href="/team?show=off">Switched off @ViewData["OffCount"]</a>
-        </nav>
-    </div>
-    <div class="vk-table-scroll">
-    <table class="vk-files vk-clients">
-        <thead><tr><th>Person</th><th>Department</th><th>Joined</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Added</th><th></th></tr></thead>
-        <tbody>
-        @foreach (var p in Model.People)
-        {
-            var me = p.UserId == Model.Me;
-            <tr class="@(p.IsActive ? "" : "is-off")">
-                <td>
-                    <div class="vk-client">
-                        <vk-avatar name="@p.DisplayName" tone="@p.AvatarTone" photo-url="@UserExtensions.PhotoUrl(p.UserId, p.PhotoVersion)" />
-                        <span><b>@p.DisplayName @(me ? "(you)" : "")</b><small>@p.Email</small></span>
-                    </div>
-                </td>
-                <td><span class="vk-cell-2"><b>@(p.Department ?? "—")</b><small>@p.JobTitle</small></span></td>
-                <td class="vk-muted">@(p.JoiningDate?.ToString("d MMM yyyy") ?? "—")</td>
-                <td>
-                    @if (me)
-                    {
-                        <span class="vk-pill">Admin</span>
-                    }
-                    else
-                    {
-                        <form method="post" action="/team/role" class="vk-inline-form">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="userId" value="@p.UserId" /><input type="hidden" name="name" value="@p.DisplayName" />
-                            <select name="role" class="vk-mini-select" onchange="this.form.submit()">
-                                <option value="Member" selected="@(p.Role != AppRoles.TenantAdmin)">Member</option>
-                                <option value="TenantAdmin" selected="@(p.Role == AppRoles.TenantAdmin)">Admin</option>
-                            </select>
-                        </form>
-                    }
-                </td>
-                <td><span class="vk-state vk-state-@p.Status.ToLowerInvariant()">@(p.Status == "Invited" ? "Invited" : p.Status)</span></td>
-                <td class="vk-muted">@(p.LastLoginUtc is DateTime l ? UserExtensions.Ago(l) : "Never")</td>
-                <td class="vk-muted">@UserExtensions.Ago(p.CreatedUtc)@(p.InvitedByName is null ? "" : $" by {p.InvitedByName}")</td>
-                <td class="vk-row-actions">
-                    <button type="button" class="vk-btn vk-btn-light vk-btn-sm" data-edit-person title="Change name, department, job title or joining date"
-                            data-id="@p.UserId" data-name="@p.DisplayName" data-email="@p.Email" data-dept="@p.Department" data-job="@p.JobTitle"
-                            data-joined="@(p.JoiningDate?.ToString("yyyy-MM-dd"))"><i class="fa fa-pencil"></i> Edit</button>
-                    @if (p.IsActive)
-                    {
-                        <form method="post" action="/team/resend" class="vk-inline-form">
-                            @Html.AntiForgeryToken()<input type="hidden" name="userId" value="@p.UserId" />
-                            <button class="vk-btn vk-btn-light vk-btn-sm" type="submit" title="@(p.IsInvited ? "Send the invite email again" : "Email them a link to choose a new password")">
-                                <i class="fa @(p.IsInvited ? "fa-paper-plane" : "fa-key")"></i> @(p.IsInvited ? "Resend invite" : "Reset password")
-                            </button>
-                        </form>
-                    }
-                    @if (!me)
-                    {
-                        <form method="post" action="/team/active" class="vk-inline-form">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="userId" value="@p.UserId" /><input type="hidden" name="name" value="@p.DisplayName" />
-                            <input type="hidden" name="isActive" value="@((!p.IsActive).ToString().ToLowerInvariant())" />
-                            <button class="vk-btn vk-btn-light vk-btn-sm" type="submit" title="@(p.IsActive ? "Stop them signing in" : "Let them sign in again")">
-                                <i class="fa @(p.IsActive ? "fa-ban" : "fa-check")"></i> @(p.IsActive ? "Switch off" : "Switch on")
-                            </button>
-                        </form>
-                    }
-                </td>
-            </tr>
-        }
-        @if (Model.People.Count == 0)
-        {
-            <tr><td colspan="8" class="vk-empty">Nobody here. Use Add people to invite your office.</td></tr>
-        }
-        </tbody>
-    </table>
-    </div>
-</section>
+    <div class="vk-ws-scroll">
+    <div class="vk-admin-grid">
+        @* ---- the list ---- *@
+        <modern-table id="peopleGrid" name="SelectedPerson"
+                      grid-name="@($"Everyone at {User.TenantName()}")" icon="users" icon-background-color="#EEF0FB" icon-color="#2B2F86"
+                      searchable="true" search-placeholder="Search people..."
+                      show-filter-button="true" column-toggle="true" selectable="true" enable-paging="true" page-size="10"
+                      is-animated-scrolling="true" row-height="56px" header-height="44px" row-font-size="13.5px"
+                      row-id-field="Id" table-height="560px" items="rows">
+            <column field="Id" header="Id" visible="false" filterable="false" sortable="false"></column>
+            <column field="Face" header=" " type="image" image-size="34px" width="56px" filterable="false" sortable="false"></column>
+            <column field="Name" header="Name" width="170px"></column>
+            <column field="Email" header="Email" width="220px"></column>
+            <column field="Department" header="Department" width="130px"></column>
+            <column field="JobTitle" header="Job title" width="130px"></column>
+            <column field="Role" header="Role" type="badge" width="100px">
+                <badge value="Admin" color="#E3E5FB"></badge>
+                <badge value="Member" color="#EEF0F6"></badge>
+            </column>
+            <column field="Status" header="Status" type="badge" width="120px">
+                <badge value="Active" color="#DDF3EA"></badge>
+                <badge value="Invited" color="#FBE3EF"></badge>
+                <badge value="Switched off" color="#FFF0D4"></badge>
+            </column>
+            <column field="Joined" header="Joined" width="125px" format="dd-mm-yyyy"></column>
+            <column field="LastSignIn" header="Last sign-in" width="120px"></column>
+            <column field="Added" header="Added" width="110px" format="dd-mm-yyyy" visible="false"></column>
+        </modern-table>
 
-<vk-dialog id="inviteDialog" title="Add a person" icon="user-plus" ok-text="Send invite" action="/team/invite" width="520px">
+        @* ---- details of the selected person ---- *@
+        <aside class="vk-insp vk-glass-card" id="personInspector" data-state="empty" aria-live="polite">
+            <div class="vk-insp-empty">
+                <span class="vk-insp-empty-ic"><i class="fa fa-hand-pointer-o" aria-hidden="true"></i></span>
+                <strong>No one selected</strong>
+                <span>Pick a row in the list to see their details, send a link, change their role or switch them off.</span>
+            </div>
+            <div class="vk-insp-body">
+                <div class="vk-insp-head">
+                    <span class="vk-avatar vk-team-face" id="pFace">?</span>
+                    <div class="vk-insp-id"><strong id="pName">-</strong>
+                        <button type="button" class="vk-insp-link" id="pEmail" title="Copy the email"><span></span> <i class="fa fa-clone" aria-hidden="true"></i></button></div>
+                    <span class="vk-badge" id="pStatus">Active</span>
+                </div>
+
+                <div class="vk-insp-section vk-team-role">
+                    <div class="vk-insp-label">Role</div>
+                    <div class="vk-team-role-line"><i class="fa fa-id-badge" aria-hidden="true"></i><b id="pRole">-</b></div>
+                    <span class="vk-insp-note" id="pRoleNote">-</span>
+                </div>
+
+                <dl class="vk-insp-kv">
+                    <div><dt>Department</dt><dd id="pDept">-</dd></div>
+                    <div><dt>Job title</dt><dd id="pJob">-</dd></div>
+                    <div><dt>Joined</dt><dd id="pJoined">-</dd></div>
+                    <div><dt>Last sign-in</dt><dd id="pLast">-</dd></div>
+                    <div><dt>Added</dt><dd id="pAdded">-</dd></div>
+                </dl>
+
+                <div class="vk-insp-foot">
+                    <button type="button" class="vk-btn vk-btn-grad vk-block" data-cmd="editPerson"><i class="fa fa-pencil" aria-hidden="true"></i> Edit details</button>
+                    <button type="button" class="vk-btn vk-btn-light vk-block" data-cmd="sendLink" id="pLinkBtn"><i class="fa fa-paper-plane" aria-hidden="true"></i> <span>Send link</span></button>
+                    <button type="button" class="vk-btn vk-btn-light vk-block" data-cmd="toggleRole" id="pRoleBtn"><i class="fa fa-id-badge" aria-hidden="true"></i> <span>Make admin</span></button>
+                    <button type="button" class="vk-btn vk-btn-light vk-block vk-danger-btn" data-cmd="toggleActive" id="pActiveBtn"><i class="fa fa-ban" aria-hidden="true"></i> <span>Switch off</span></button>
+                    <span class="vk-insp-note" id="pSelfNote" hidden>This is you. Another admin can change your role or switch you off.</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+    </div>
+</div>
+
+@* ---- Add a person ---- *@
+<vk-dialog id="inviteDialog" title="Add a person" subtitle="They get an email with a link to set their own password."
+           icon="user-plus" ok-text="Send invite" ok-icon="paper-plane" cancel-text="Cancel" action="/team/invite" width="620px">
     @Html.AntiForgeryToken()
-    <vk-input id="displayName" label="Name" icon="user-o" mandatory="true" placeholder="Meera Iyer" max-length="120" />
-    <vk-input id="email" label="Work email" icon="envelope-o" mandatory="true" placeholder="meera@yourcompany.com" input-type="email" max-length="200" />
-    <vk-select id="role" label="Role" icon="id-badge" options="Member|Member · uses the apps,TenantAdmin|Admin · can also add and manage people" selected="Member" />
-    <div class="vk-form-2">
-        <vk-input id="department" label="Department" icon="sitemap" placeholder="Sales" max-length="80" />
-        <vk-input id="jobTitle" label="Job title" icon="briefcase" placeholder="Accountant" max-length="80" />
-    </div>
-    <vk-input id="joiningDate" label="Joining date" icon="calendar" input-type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
-    <p class="vk-dialog-note"><i class="fa fa-envelope-o"></i> They'll get an email with a link to set their password. The link works once and lasts 7 days.</p>
+    <vk-group title="Who|they are">
+        <modern-input id="inviteName" name="displayName" label="Name" mandatory="true" placeholder="Meera Iyer" max-length="120" label-font-size="13.5px"></modern-input>
+        <modern-input id="inviteEmail" name="email" label="Work email" mandatory="true" placeholder="meera@yourcompany.com" max-length="200" label-font-size="13.5px"></modern-input>
+        <modern-dropdown-with-label id="inviteRole" name="role" label="Role" required="true" value="@AppRoles.Member" items="roleItems"></modern-dropdown-with-label>
+    </vk-group>
+    <vk-group title="Work|details">
+        <div class="vk-form-2">
+            <modern-input id="inviteDept" name="department" label="Department" placeholder="Sales" max-length="80" label-font-size="13.5px"></modern-input>
+            <modern-input id="inviteJob" name="jobTitle" label="Job title" placeholder="Accountant" max-length="80" label-font-size="13.5px"></modern-input>
+        </div>
+        <modern-datepicker-with-label id="inviteJoined" name="joiningDate" label="Joining date" value="@DateTime.Today.ToString("dd-MM-yyyy", inv)"></modern-datepicker-with-label>
+    </vk-group>
+    <p class="vk-group-note"><i class="fa fa-envelope-o"></i> The link works once and lasts 7 days. Each person uses one license.</p>
 </vk-dialog>
 
-<vk-dialog id="personDialog" title="Edit person" icon="pencil" ok-text="Save" action="/team/details" width="520px">
+@* ---- Edit a person ---- *@
+<vk-dialog id="personDialog" title="Edit person" subtitle="Their email stays the same; they sign in with it."
+           icon="pencil" ok-text="Save" ok-icon="check" cancel-text="Cancel" action="/team/details" width="620px">
     @Html.AntiForgeryToken()
-    <input type="hidden" name="userId" id="personId" />
-    <p class="vk-dialog-note" id="personEmail"></p>
-    <vk-input id="personName" name="displayName" label="Name" icon="user-o" mandatory="true" max-length="120" />
-    <div class="vk-form-2">
-        <vk-input id="personDept" name="department" label="Department" icon="sitemap" max-length="80" />
-        <vk-input id="personJob" name="jobTitle" label="Job title" icon="briefcase" max-length="80" />
-    </div>
-    <vk-input id="personJoined" name="joiningDate" label="Joining date" icon="calendar" input-type="date" />
+    <input type="hidden" name="userId" id="editPersonId" />
+    <vk-group title="Who|they are">
+        <modern-input id="editPersonName" name="displayName" label="Name" mandatory="true" max-length="120" label-font-size="13.5px"></modern-input>
+        <p class="vk-group-note" id="editPersonEmail"></p>
+    </vk-group>
+    <vk-group title="Work|details">
+        <div class="vk-form-2">
+            <modern-input id="editPersonDept" name="department" label="Department" max-length="80" label-font-size="13.5px"></modern-input>
+            <modern-input id="editPersonJob" name="jobTitle" label="Job title" max-length="80" label-font-size="13.5px"></modern-input>
+        </div>
+        <modern-datepicker-with-label id="editPersonJoined" name="joiningDate" label="Joining date"></modern-datepicker-with-label>
+    </vk-group>
 </vk-dialog>
+
+<script type="application/json" id="teamCfg">@Html.Raw(JsonSerializer.Serialize(new
+{
+    selected = Model.Selected,
+    company = User.TenantName()
+}).Replace("</", "<\\/"))</script>
 
 @section Scripts {
-    <script>
-        // fill the Edit person window from the row and open it
-        document.addEventListener("click", function (e) {
-            var b = e.target.closest("[data-edit-person]"); if (!b) return;
-            var d = b.dataset;
-            document.getElementById("personId").value = d.id;
-            document.getElementById("personEmail").textContent = d.email;
-            document.getElementById("personName").value = d.name || "";
-            document.getElementById("personDept").value = d.dept || "";
-            document.getElementById("personJob").value = d.job || "";
-            document.getElementById("personJoined").value = d.joined || "";
-            document.getElementById("personDialog").showModal();
-        });
-    </script>
+    <vk-bundle name="team.js" />
+    <script>VKTeam.init();</script>
 }

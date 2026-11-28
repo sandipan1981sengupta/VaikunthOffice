@@ -33,7 +33,7 @@ public sealed class MockBillingService : IBillingService
         var id = Guid.NewGuid();
         lock (MockData.Payments)
             MockData.Payments.Add(new PaymentDto(id, t.TenantId, t.Name, Money.FirstOfMonth(r.Period), r.Amount, billAmount, r.PaidOn, r.Method,
-                BillingService.Clean(r.Reference, 100), BillingService.Clean(r.Note, 500), "Vaikunth Office admin", DateTime.UtcNow));
+                BillingService.Clean(r.Reference, 100), BillingService.Clean(r.Note, 500), "Vaikunth Desk admin", DateTime.UtcNow));
         return Task.FromResult(OperationResult.Ok(id));
     }
 
@@ -51,6 +51,17 @@ public sealed class MockBillingService : IBillingService
             if (until is not null) t.BillingBlocked = false;
         }
         return Task.CompletedTask;
+    }
+
+    public Task<OperationResult> SaveClientRulesAsync(ClientRulesRequest r)
+    {
+        if (BillingRules.Validate(r) is string problem) return Task.FromResult(OperationResult.Fail(problem));
+        if (!MockData.Tenants.TryGetValue(r.TenantId, out var t)) return Task.FromResult(OperationResult.Fail("Client not found."));
+        t.DueDay = r.UseDefault ? null : r.DueDay;
+        t.GraceDays = r.UseDefault ? null : r.GraceDays;
+        t.AutoBlock = r.UseDefault ? null : r.AutoBlock;
+        if (r.BillingFrom is DateOnly f) t.BillingFrom = Money.FirstOfMonth(f);
+        return Task.FromResult(OperationResult.Ok(t.TenantId));
     }
 
     public Task SetBlockedAsync(Guid tenantId, bool blocked)

@@ -7,7 +7,6 @@
     <partial name="_Head" />
     <title>@(ViewData["Title"] is string t ? $"{t} · {Current.Info.Name}" : Current.Info.Name)</title>
     <meta name="theme-color" content="@Current.Info.Color" />
-    <link rel="stylesheet" href="~/_content/Vaikunth.UI/css/editor.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="vk-editor-body" data-app="@Current.Info.Key" data-ext="@SuiteApps.DownloadExt(Current.Info.App)" style="--app:@Current.Info.Color;--app-tint:@Current.Info.Tint">
@@ -37,7 +36,7 @@
         <div class="vk-file-actions">
             <button type="button" class="vk-file-act" data-cmd="fileSave">
                 <i class="fa fa-cloud-upload"></i>
-                <span><b>Save on the server</b><small>Keeps it in Vaikunth Office. It shows in Recent files and you can open it from any computer.</small></span>
+                <span><b>Save on the server</b><small>Keeps it in Vaikunth Desk. It shows in Recent files and you can open it from any computer.</small></span>
             </button>
             <button type="button" class="vk-file-act" data-cmd="fileExport">
                 <i class="fa @icon"></i>
@@ -49,7 +48,7 @@
             </a>
             <a class="vk-file-act" href="/" target="_blank">
                 <i class="fa fa-th"></i>
-                <span><b>Vaikunth Office home</b><small>Your recent files and the other apps, in a new tab.</small></span>
+                <span><b>Vaikunth Desk home</b><small>Your recent files and the other apps, in a new tab.</small></span>
             </a>
         </div>
     </vk-dialog>
@@ -57,7 +56,7 @@
     <partial name="_AboutDialog" />
 
     <div class="vk-toast" id="toast" hidden></div>
-    <script src="~/_content/Vaikunth.UI/js/vaikunth.js" asp-append-version="true"></script>
+    <vk-bundle name="site.js" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

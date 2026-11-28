@@ -1,0 +1,163 @@
+@model Vaikunth.SudarshanaInbox.Controllers.InboxViewModel
+@{
+    Layout = ViewData["Partial"] is true ? "_PanelLayout" : "_AdminLayout";
+    ViewData["Title"] = "Sudarshana Inbox";
+    ViewData["Section"] = "inbox";
+    ViewData["HeadSub"] = "Sudarshana Inbox · " + User.TenantName();
+    ViewData["FixedShell"] = true;
+    var c = Model.Counts;
+    var folders = new (string Key, string Name, string Icon, int Count)[]
+    {
+        ("inbox", "Inbox", "inbox", c.UnreadInbox), ("starred", "Starred", "star", c.Starred), ("sent", "Sent", "paper-plane", 0),
+        ("drafts", "Drafts", "pencil-square-o", c.Drafts), ("trash", "Trash", "trash-o", c.Trash)
+    };
+}
+
+<div class="vk-admin-ws vk-mail">
+    <vk-action-header id="MailHeader" heading="Sudarshana Inbox" icon="envelope-o" subtitle="@($"{User.Identity?.Name} · mail for everyone at {User.TenantName()}")">
+        <vk-action-btn text="New email" icon="pencil" cmd="mNew" tone="blue" tooltip="Write a new message (C)" />
+        <vk-action-btn text="Reply" icon="reply" cmd="mReply" tone="green" separator="true" tooltip="Reply to the sender (R)" />
+        <vk-action-btn text="Reply all" icon="reply-all" cmd="mReplyAll" tone="green" tooltip="Reply to everyone on the message (A)" />
+        <vk-action-btn text="Forward" icon="share" cmd="mForward" tone="violet" tooltip="Send the message on to someone else (F)" />
+        <vk-action-btn text="Star" icon="star-o" cmd="mStar" tone="amber" separator="true" tooltip="Keep it close: starred messages have their own folder (S)" />
+        <vk-action-btn text="Unread" icon="envelope" cmd="mUnread" tone="slate" tooltip="Mark the message as not read yet (U)" />
+        <vk-action-btn text="Delete" icon="trash" cmd="mDelete" tone="red" tooltip="Move it to Trash; in Trash, delete it for good (Delete)" />
+        <vk-action-btn text="Refresh" icon="refresh" cmd="mRefresh" tone="slate" separator="true" tooltip="Look for new mail" />
+        <vk-action-btn text="Print" icon="print" cmd="mPrint" tone="slate" tooltip="Print the open message" />
+    </vk-action-header>
+
+    @if (Model.NeedsUpdate)
+    {
+        <div class="vk-banner warn"><i class="fa fa-database" aria-hidden="true"></i><span>Sudarshana Inbox needs the latest database. Ask your Vaikunth Desk administrator to run <b>database/Vaikunth_Update.sql</b> once.</span></div>
+    }
+
+    <div class="vk-mail-body">
+        @* ---- folders ---- *@
+        <aside class="vk-mail-side vk-glass-card">
+            <button type="button" class="vk-mail-compose" data-cmd="mNew"><i class="fa fa-pencil" aria-hidden="true"></i> New email</button>
+            <nav class="vk-mail-folders" aria-label="Folders">
+                @foreach (var f in folders)
+                {
+                    <button type="button" class="vk-mail-folder @(f.Key == "inbox" ? "on" : "")" data-folder="@f.Key">
+                        <i class="fa fa-@f.Icon" aria-hidden="true"></i><span>@f.Name</span>
+                        <b class="vk-mail-count" data-count="@f.Key" @(f.Count == 0 ? "hidden" : "")>@f.Count</b>
+                    </button>
+                }
+            </nav>
+            <div class="vk-mail-tip">
+                <img src="/_content/Vaikunth.UI/images/app-inbox.svg" alt="" width="40" height="40" />
+                <span><b>Fast as Sudarshana</b>Mail to your own team lands at once. Other addresses get a real email@(Model.EmailConfigured ? "" : " (this server keeps them in the outbox for now)").</span>
+            </div>
+            <p class="vk-mail-keys"><kbd>C</kbd> new · <kbd>R</kbd> reply · <kbd>A</kbd> reply all · <kbd>F</kbd> forward · <kbd>J</kbd>/<kbd>K</kbd> next and back</p>
+        </aside>
+
+        @* ---- the list ---- *@
+        <section class="vk-mail-listpane vk-glass-card">
+            <div class="vk-mail-listhead">
+                <h2 id="mailFolderName">Inbox</h2>
+                <span class="vk-fill"></span>
+                <span class="vk-mail-filter" role="group" aria-label="Show">
+                    <button type="button" data-filter="all" aria-pressed="true">All</button>
+                    <button type="button" data-filter="unread" aria-pressed="false">Unread</button>
+                </span>
+            </div>
+            <div class="vk-mail-search">
+                <modern-input id="mailSearch" name="mailSearch" label="" placeholder="Search mail: a name, a subject or a word" max-length="100"></modern-input>
+            </div>
+            <div class="vk-mail-trashbar" id="mailTrashBar" hidden>
+                <span><i class="fa fa-info-circle"></i> Messages in Trash can be put back, or deleted for good.</span>
+                <button type="button" class="vk-link" data-cmd="mEmptyTrash">Empty Trash</button>
+            </div>
+            <div class="vk-mail-list" id="mailList" role="listbox" aria-label="Messages"></div>
+        </section>
+
+        @* ---- reading pane ---- *@
+        <section class="vk-mail-read vk-glass-card" id="mailRead" aria-live="polite">
+            <div class="vk-mail-empty" id="mailEmpty">
+                <div class="vk-mail-empty-art" aria-hidden="true"><span class="ring"></span><img src="/_content/Vaikunth.UI/images/app-inbox.svg" alt="" width="96" height="96" /></div>
+                <b>Pick a message to read it</b>
+                <span>Or write a new one. Your team gets it in a moment.</span>
+                <button type="button" class="vk-btn vk-btn-primary" data-cmd="mNew"><i class="fa fa-pencil"></i> New email</button>
+            </div>
+            <article class="vk-mail-msg" id="mailMsg" hidden>
+                <header class="vk-mail-msghead">
+                    <h1 id="msgSubject"></h1>
+                    <div class="vk-mail-from">
+                        <span class="vk-mail-av" id="msgAvatar"></span>
+                        <span class="vk-mail-fromtext"><b id="msgFrom"></b><small id="msgTo"></small><small id="msgCc"></small></span>
+                        <span class="vk-fill"></span>
+                        <time id="msgWhen"></time>
+                        <button type="button" class="vk-mail-starbtn" data-cmd="mStar" title="Star" aria-label="Star"><i class="fa fa-star-o"></i></button>
+                    </div>
+                </header>
+                <iframe class="vk-mail-frame" id="msgFrame" title="Message" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+                <footer class="vk-mail-msgfoot" id="msgFoot">
+                    <button type="button" class="vk-btn vk-btn-light" data-cmd="mReply"><i class="fa fa-reply"></i> Reply</button>
+                    <button type="button" class="vk-btn vk-btn-light" data-cmd="mReplyAll"><i class="fa fa-reply-all"></i> Reply all</button>
+                    <button type="button" class="vk-btn vk-btn-light" data-cmd="mForward"><i class="fa fa-share"></i> Forward</button>
+                </footer>
+            </article>
+        </section>
+    </div>
+</div>
+
+@* ---- write a message ---- *@
+<dialog id="composeDialog" class="vk-dialog vk-mail-compose-dlg" style="width:min(820px, calc(100vw - 32px))">
+    <form method="dialog" class="vk-dialog-inner">
+        <div class="vk-dialog-head">
+            <span class="vk-dialog-ic"><i class="fa fa-paper-plane"></i></span>
+            <div class="vk-dialog-titles"><h3 id="composeTitle">New email</h3><p class="vk-dialog-sub">Type a name from your company, or any email address. Separate several with a semicolon.</p></div>
+            <button type="button" class="vk-dialog-x" data-cmd="mCloseCompose" aria-label="Close"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="vk-dialog-body">
+            <input type="hidden" id="composeDraftId" />
+            <div class="vk-mail-to">
+                <modern-input id="composeTo" name="to" label="To" mandatory="true" placeholder="Arjun Nair, or someone@example.com" max-length="2000" label-font-size="13.5px"></modern-input>
+                <button type="button" class="vk-link vk-mail-ccbtn" id="composeCcBtn">Cc</button>
+            </div>
+            <div id="composeCcRow" hidden>
+                <modern-input id="composeCc" name="cc" label="Cc" placeholder="Copy someone in" max-length="2000" label-font-size="13.5px"></modern-input>
+            </div>
+            <div class="vk-mail-suggest" id="composeSuggest" role="listbox" hidden></div>
+            <modern-input id="composeSubject" name="subject" label="Subject" placeholder="What is it about?" max-length="300" label-font-size="13.5px"></modern-input>
+            <div class="vk-mail-tools" role="toolbar" aria-label="Formatting">
+                <button type="button" data-fmt="bold" title="Bold (Ctrl+B)"><i class="fa fa-bold"></i></button>
+                <button type="button" data-fmt="italic" title="Italic (Ctrl+I)"><i class="fa fa-italic"></i></button>
+                <button type="button" data-fmt="underline" title="Underline (Ctrl+U)"><i class="fa fa-underline"></i></button>
+                <span class="sep"></span>
+                <button type="button" data-fmt="insertUnorderedList" title="Bullets"><i class="fa fa-list-ul"></i></button>
+                <button type="button" data-fmt="insertOrderedList" title="Numbers"><i class="fa fa-list-ol"></i></button>
+                <button type="button" data-fmt="formatBlock" data-val="blockquote" title="Quote"><i class="fa fa-quote-right"></i></button>
+                <span class="sep"></span>
+                <button type="button" data-fmt="createLink" title="Link"><i class="fa fa-link"></i></button>
+                <button type="button" data-fmt="removeFormat" title="Clear formatting"><i class="fa fa-eraser"></i></button>
+            </div>
+            <div class="vk-mail-editor" id="composeBody" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" data-placeholder="Write your message..."></div>
+        </div>
+        <div class="vk-dialog-foot">
+            <button type="button" class="vk-btn vk-btn-light" data-cmd="mDiscard"><i class="fa fa-trash-o"></i> Discard</button>
+            <span class="vk-fill"></span>
+            <button type="button" class="vk-btn vk-btn-light" data-cmd="mSaveDraft"><i class="fa fa-floppy-o"></i> Save draft</button>
+            <button type="button" class="vk-btn vk-btn-primary vk-mail-sendbtn" data-cmd="mSend"><i class="fa fa-paper-plane"></i> Send</button>
+        </div>
+    </form>
+</dialog>
+
+<script type="application/json" id="inboxCfg">@Html.Raw(JsonSerializer.Serialize(new
+{
+    me = User.UserId(),
+    myEmail = User.Identity?.Name,
+    myName = User.DisplayName(),
+    openNew = Model.OpenNew,
+    newTo = Model.NewTo,
+    blocked = Model.NeedsUpdate,
+    people = Model.People.Select(p => new { id = p.UserId, name = p.DisplayName, email = p.Email, job = p.JobTitle, tone = p.AvatarTone })
+}).Replace("</", "<\\/"))</script>
+
+@section Styles {
+    <vk-bundle name="inbox.css" />
+}
+@section Scripts {
+    <vk-bundle name="inbox.js" />
+    <script>VKInbox.init();</script>
+}

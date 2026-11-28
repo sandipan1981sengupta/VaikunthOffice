@@ -3,19 +3,19 @@
 <html lang="en">
 <head>
     <partial name="_Head" />
-    <title>@(ViewData["Title"] is string t ? $"{t} · Vaikunth Office" : "Vaikunth Office")</title>
+    <title>@(ViewData["Title"] is string t ? $"{t} · Vaikunth Desk" : "Vaikunth Desk")</title>
     <meta name="theme-color" content="#EEF0FB" />
 </head>
 <body class="vk-auth-body" data-app="@Current.Info.Key">
     <div class="vk-backdrop" aria-hidden="true">
-        <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+        <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span>
     </div>
     <main class="vk-auth-wrap">
         @RenderBody()
     </main>
-    <button type="button" class="vk-about-link" data-open-dialog="aboutDialog"><i class="fa fa-info-circle" aria-hidden="true"></i> About Vaikunth Office</button>
+    <button type="button" class="vk-about-link" data-open-dialog="aboutDialog"><i class="fa fa-info-circle" aria-hidden="true"></i> About Vaikunth Desk</button>
     <partial name="_AboutDialog" />
-    <script src="~/_content/Vaikunth.UI/js/vaikunth.js" asp-append-version="true"></script>
+    <vk-bundle name="site.js" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

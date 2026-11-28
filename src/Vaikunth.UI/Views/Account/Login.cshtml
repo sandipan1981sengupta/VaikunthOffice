@@ -6,7 +6,7 @@
 <partial name="_AuthHero" />
 
 <div class="vk-window-wrap">
-    <div class="vk-window-orbs" aria-hidden="true"><span class="w1"></span><span class="w2"></span><span class="w3"></span></div>
+    <div class="vk-window-orbs" aria-hidden="true"><span class="w1"></span><span class="w2"></span><span class="w3"></span><span class="w4"></span><span class="w5"></span><i class="vk-orbit-ring"></i></div>
 
     <div class="vk-float vk-float-a glass" aria-hidden="true">
         <img src="/_content/Vaikunth.UI/images/app-workbook.svg" width="34" height="34" alt="" />
@@ -16,13 +16,21 @@
         <img src="/_content/Vaikunth.UI/images/app-slides.svg" width="34" height="34" alt="" />
         <span><b>Quarterly review</b><small>3 slides · ready to present</small></span>
     </div>
+    <div class="vk-float vk-float-c glass" aria-hidden="true">
+        <img src="/_content/Vaikunth.UI/images/app-reader.svg" width="34" height="34" alt="" />
+        <span><b>Annual report.pdf</b><small>48 pages · 6 notes</small></span>
+    </div>
+    <div class="vk-float vk-float-d glass" aria-hidden="true">
+        <img src="/_content/Vaikunth.UI/images/app-days.svg" width="34" height="34" alt="" />
+        <span><b>Stand-up at 10:00</b><small>4 people going</small></span>
+    </div>
 
-    <form method="post" asp-action="Login" class="vk-window glass" novalidate>
+    <form method="post" asp-action="Login" class="vk-window glass vk-window-glow" novalidate>
         <div class="vk-window-top">
             <div>
                 <div class="vk-eyebrow">Welcome back</div>
                 <h2>Sign in</h2>
-                <p class="vk-window-sub">to Vaikunth Office</p>
+                <p class="vk-window-sub">to Vaikunth Desk</p>
             </div>
             <span class="vk-lock"><i class="fa fa-lock" aria-hidden="true"></i></span>
         </div>
@@ -48,9 +56,10 @@
 
         <button type="submit" class="vk-btn vk-btn-grad vk-signin">Sign in <i class="fa fa-arrow-right" aria-hidden="true"></i></button>
 
-        <div class="vk-divider"><span></span><i class="fa fa-shield" aria-hidden="true"></i> One sign-in for all five apps<span></span></div>
+        <div class="vk-divider"><span></span><i class="fa fa-shield" aria-hidden="true"></i> One sign-in for all seven apps<span></span></div>
         <div class="vk-login-apps" aria-hidden="true">
-            @foreach (var a in SuiteApps.All) { <vk-app-icon app="@a.Key" size="30" /> }
+            @{ var li = 0; }
+            @foreach (var a in SuiteApps.All) { <span style="--i:@(li++)"><vk-app-icon app="@a.Key" size="30" /></span> }
         </div>
         @if (Model.MockMode)
         {

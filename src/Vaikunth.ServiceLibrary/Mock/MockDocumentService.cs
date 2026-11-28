@@ -119,10 +119,10 @@ public sealed class MockDocumentService : IDocumentService
         Add(SamplePages, SuiteApp.Pages, "Project charter", new PagesContent
         {
             Html = """
-                <h1>Project charter: Vaikunth Office</h1>
+                <h1>Project charter: Vaikunth Desk</h1>
                 <p><em>Prepared by the product team · Draft 0.3</em></p>
                 <h2>Purpose</h2>
-                <p>Vaikunth Office brings documents, workbooks and slides together in one place, so a team can
+                <p>Vaikunth Desk brings documents, workbooks and slides together in one place, so a team can
                 <b>write, calculate and present</b> without leaving the browser.</p>
                 <h2>Goals for this quarter</h2>
                 <ul>
@@ -190,7 +190,7 @@ public sealed class MockDocumentService : IDocumentService
                 [
                     new SlideBoxDto { X = 6, Y = 6, W = 88, H = 14, Html = "Next quarter", FontSize = 40, Role = "title" },
                     new SlideBoxDto { X = 6, Y = 24, W = 88, H = 66, FontSize = 24, Role = "body",
-                        Html = "<ol><li>Launch Vaikunth Office to the first customers</li><li>Open the Central region office</li><li>Hire two more engineers</li></ol>" },
+                        Html = "<ol><li>Launch Vaikunth Desk to the first customers</li><li>Open the Central region office</li><li>Hire two more engineers</li></ol>" },
                 ]},
             ]
         }, 6);
@@ -217,9 +217,9 @@ public sealed class MockDocumentService : IDocumentService
 
         // Dhruva Planner: the launch project, with tasks across the board and the timeline
         var d0 = DateOnly.FromDateTime(DateTime.Today).AddDays(-10);
-        Add(SamplePlanner, SuiteApp.Planner, "Vaikunth Office launch", new PlannerContent
+        Add(SamplePlanner, SuiteApp.Planner, "Vaikunth Desk launch", new PlannerContent
         {
-            Description = "Take Vaikunth Office to the first three client companies.",
+            Description = "Take Vaikunth Desk to the first three client companies.",
             Start = d0, End = d0.AddDays(41),
             Tasks =
             [

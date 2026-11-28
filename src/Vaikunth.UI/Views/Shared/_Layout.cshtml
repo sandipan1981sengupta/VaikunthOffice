@@ -1,10 +1,10 @@
 @inject CurrentApp Current
-@* The suite shell around the launcher: top bar with the Vaikunth Office name, search and the person's menu. *@
+@* The suite shell around the launcher: top bar with the Vaikunth Desk name, search and the person's menu. *@
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <partial name="_Head" />
-    <title>@(ViewData["Title"] is string t ? $"{t} · Vaikunth Office" : "Vaikunth Office")</title>
+    <title>@(ViewData["Title"] is string t ? $"{t} · Vaikunth Desk" : "Vaikunth Desk")</title>
     <meta name="theme-color" content="#F4F5FB" />
 </head>
 <body class="vk-shell-body" data-app="@Current.Info.Key">
@@ -14,8 +14,9 @@
     <header class="vk-topbar">
         <a class="vk-brand" href="/">
             <vk-app-icon app="suite" size="38" />
-            <span class="vk-brand-text"><b>VAIKUNTH</b> OFFICE</span>
+            <span class="vk-brand-text"><b>VAIKUNTH</b> DESK</span>
         </a>
+        <span class="vk-maker" title="@SuiteOptions.Maker"><small>A product of</small><b>@SuiteOptions.Maker.ToUpperInvariant()</b></span>
         @if (User.IsSuperAdmin())
         {
             <nav class="vk-topnav"><a class="on" href="/admin"><i class="fa fa-building-o"></i> Clients</a></nav>
@@ -34,7 +35,7 @@
         }
         <label class="vk-top-search"><i class="fa fa-search"></i><input type="search" placeholder="Search files, people and apps" /></label>
         <div class="vk-top-right">
-            <button type="button" class="vk-icon-btn" title="About Vaikunth Office" data-open-dialog="aboutDialog"><i class="fa fa-info-circle"></i></button>
+            <button type="button" class="vk-icon-btn" title="About Vaikunth Desk" data-open-dialog="aboutDialog"><i class="fa fa-info-circle"></i></button>
             <button type="button" class="vk-icon-btn" title="Notifications"><i class="fa fa-bell-o"></i><span class="vk-dot"></span></button>
             <div class="vk-menu">
                 <button type="button" class="vk-avatar-btn" data-toggle-menu>
@@ -43,12 +44,15 @@
                     <i class="fa fa-angle-down"></i>
                 </button>
                 <div class="vk-menu-pop" hidden>
-                    <div class="vk-menu-who"><b>@User.DisplayName()</b><small>@User.Identity?.Name</small><small>@(User.IsSuperAdmin() ? "Super admin" : User.TenantName())</small></div>
+                    <div class="vk-menu-who">
+                        <vk-avatar name="@User.DisplayName()" tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" size="48" />
+                        <span class="vk-who-text"><b>@User.DisplayName()</b><small title="@User.Identity?.Name">@User.Identity?.Name</small><em class="vk-who-role">@(User.IsSuperAdmin() ? "Super admin" : User.TenantName())</em></span>
+                    </div>
                     @if (User.IsSuperAdmin()) { <a class="vk-menu-link" href="/admin"><i class="fa fa-building-o"></i> Clients</a> }
                     @if (User.IsInRole(AppRoles.TenantAdmin)) { <a class="vk-menu-link" href="/team"><i class="fa fa-users"></i> People</a> }
                     <button type="button" data-open-dialog="accountDialog"><i class="fa fa-user-circle-o"></i> My account</button>
                     <button type="button" data-open-dialog="photoDialog"><i class="fa fa-camera"></i> Profile photo</button>
-                    <button type="button" data-open-dialog="aboutDialog"><i class="fa fa-info-circle"></i> About Vaikunth Office</button>
+                    <button type="button" data-open-dialog="aboutDialog"><i class="fa fa-info-circle"></i> About Vaikunth Desk</button>
                     <form method="post" action="/account/logout">@Html.AntiForgeryToken()<button type="submit"><i class="fa fa-sign-out"></i> Sign out</button></form>
                 </div>
             </div>
@@ -63,7 +67,7 @@
 
     <partial name="_AccountDialogs" />
 
-    <script src="~/_content/Vaikunth.UI/js/vaikunth.js" asp-append-version="true"></script>
+    <vk-bundle name="site.js" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

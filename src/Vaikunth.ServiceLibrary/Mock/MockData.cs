@@ -35,6 +35,9 @@ internal static class MockData
         public DateOnly? BillingFrom { get; set; } = Money.FirstOfMonth(DateOnly.FromDateTime(DateTime.Now)).AddMonths(1);
         public DateOnly? BillingHoldUntil { get; set; }
         public bool BillingBlocked { get; set; }
+        public int? DueDay { get; set; }
+        public int? GraceDays { get; set; }
+        public bool? AutoBlock { get; set; }
     }
 
     public static readonly BillingSettingsDto Billing = new();
@@ -113,7 +116,7 @@ internal static class MockData
             var bill = MaxUsers(t) * Plans.First(p => p.PlanId == t.PlanId).PricePerUser;
             var paidOn = new DateOnly(month.Year, month.Month, Math.Min(paidDay, 28));
             if (paidOn > DateOnly.FromDateTime(DateTime.Now)) paidOn = DateOnly.FromDateTime(DateTime.Now);
-            Payments.Add(new PaymentDto(Guid.NewGuid(), t.TenantId, t.Name, month, bill, bill, paidOn, method, reference, null, "Vaikunth Office admin",
+            Payments.Add(new PaymentDto(Guid.NewGuid(), t.TenantId, t.Name, month, bill, bill, paidOn, method, reference, null, "Vaikunth Desk admin",
                 paidOn.ToDateTime(new TimeOnly(11, 0)).ToUniversalTime()));
         }
         foreach (var t in Tenants.Values) t.BillingFrom = thisMonth.AddMonths(-5);

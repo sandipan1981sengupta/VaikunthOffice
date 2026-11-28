@@ -1,0 +1,138 @@
+@model Vaikunth.VaijayantiDays.Controllers.DaysViewModel
+@{
+    Layout = ViewData["Partial"] is true ? "_PanelLayout" : "_AdminLayout";
+    ViewData["Title"] = "Vaijayanti Days";
+    ViewData["Section"] = "days";
+    ViewData["HeadSub"] = "Vaijayanti Days · " + User.TenantName();
+    ViewData["FixedShell"] = true;
+    var inv = CultureInfo.InvariantCulture;
+    // half-hour steps for the start and end time pickers
+    var times = Enumerable.Range(0, 48).Select(i => new TimeOnly(i / 2, i % 2 * 30))
+        .Select(t => (t.ToString("HH:mm", inv), t.ToString("h:mm tt", inv))).ToList();
+    var colors = new (string Key, string Name)[] { ("indigo", "Indigo"), ("teal", "Peacock"), ("saffron", "Saffron"), ("rose", "Lotus"), ("green", "Tulsi"), ("violet", "Violet"), ("slate", "Slate") };
+}
+
+<div class="vk-admin-ws vk-days">
+    <vk-action-header id="DaysHeader" heading="Vaijayanti Days" icon="calendar" subtitle="@($"Your calendar and your team's meetings · {User.TenantName()}")">
+        <vk-action-btn text="New event" icon="plus" cmd="dNew" tone="blue" tooltip="Add an event and invite people" />
+        <vk-action-btn text="Today" icon="dot-circle-o" cmd="dToday" tone="green" separator="true" tooltip="Go to today" />
+        <vk-action-btn text="Month" icon="calendar" cmd="dMonth" tone="violet" tooltip="The whole month" />
+        <vk-action-btn text="Week" icon="columns" cmd="dWeek" tone="violet" tooltip="Seven days, hour by hour" />
+        <vk-action-btn text="Day" icon="square-o" cmd="dDay" tone="violet" tooltip="One day, hour by hour" />
+        <vk-action-btn text="Agenda" icon="list-ul" cmd="dAgenda" tone="violet" tooltip="Everything coming up, as a list" />
+        <vk-action-btn text="Refresh" icon="refresh" cmd="dRefresh" tone="slate" separator="true" tooltip="Load the latest events" />
+        <vk-action-btn text="Print" icon="print" cmd="dPrint" tone="slate" tooltip="Print this view" />
+    </vk-action-header>
+
+    @if (Model.NeedsUpdate)
+    {
+        <div class="vk-banner warn"><i class="fa fa-database" aria-hidden="true"></i><span>Vaijayanti Days needs the latest database. Ask your Vaikunth Desk administrator to run <b>database/Vaikunth_Update.sql</b> once.</span></div>
+    }
+
+    <div class="vk-days-body">
+        <aside class="vk-days-side vk-glass-card">
+            <button type="button" class="vk-days-newbtn" data-cmd="dNew"><i class="fa fa-plus" aria-hidden="true"></i> New event</button>
+            <div class="vk-mini" id="miniCal" aria-label="Pick a day"></div>
+            <h4 class="vk-days-h"><i class="fa fa-bolt" aria-hidden="true"></i> Coming up</h4>
+            <div class="vk-days-up" id="daysUpcoming"></div>
+            <h4 class="vk-days-h"><i class="fa fa-tint" aria-hidden="true"></i> Colours</h4>
+            <div class="vk-days-legend">
+                @foreach (var c in colors) { <span><i class="vk-ev-dot ev-@c.Key"></i>@c.Name</span> }
+            </div>
+        </aside>
+
+        <section class="vk-days-main vk-glass-card">
+            <div class="vk-days-bar">
+                <button type="button" class="vk-days-nav" data-cmd="dPrev" title="Back" aria-label="Back"><i class="fa fa-chevron-left" aria-hidden="true"></i></button>
+                <button type="button" class="vk-days-nav" data-cmd="dNext" title="Forward" aria-label="Forward"><i class="fa fa-chevron-right" aria-hidden="true"></i></button>
+                <h2 id="daysTitle"></h2>
+                <span class="vk-fill"></span>
+                <span class="vk-days-seg" role="group" aria-label="View">
+                    <button type="button" data-cmd="dMonth" data-view="month">Month</button>
+                    <button type="button" data-cmd="dWeek" data-view="week">Week</button>
+                    <button type="button" data-cmd="dDay" data-view="day">Day</button>
+                    <button type="button" data-cmd="dAgenda" data-view="agenda">Agenda</button>
+                </span>
+            </div>
+            <div class="vk-days-view" id="daysView"></div>
+        </section>
+    </div>
+</div>
+
+@* ---- add or change an event ---- *@
+<vk-dialog id="eventDialog" title="New event" subtitle="Invited people get it in their calendar and a message in Sudarshana Inbox."
+           icon="calendar-plus-o" ok-text="Save" ok-icon="check" ok-cmd="dSave" cancel-text="Cancel" width="720px">
+    <input type="hidden" id="evId" />
+    <vk-group title="What|and when">
+        <modern-input id="evTitle" name="title" label="Title" mandatory="true" placeholder="Team stand-up" max-length="200" label-font-size="13.5px"></modern-input>
+        <div class="vk-form-2">
+            <modern-datepicker-with-label id="evStartDate" name="startDate" label="Starts" required="true" border-radius="12px"></modern-datepicker-with-label>
+            <modern-dropdown-with-label id="evStartTime" name="startTime" label="At" value="10:00" items="times" menu-height="240px"></modern-dropdown-with-label>
+        </div>
+        <div class="vk-form-2">
+            <modern-datepicker-with-label id="evEndDate" name="endDate" label="Ends" required="true" border-radius="12px"></modern-datepicker-with-label>
+            <modern-dropdown-with-label id="evEndTime" name="endTime" label="At" value="10:30" items="times" menu-height="240px"></modern-dropdown-with-label>
+        </div>
+        <modern-checkbox id="evAllDay" name="allDay" label="All day" is-toggle-button="true" on-text="YES" off-text="NO" label-font-size="13.5px"></modern-checkbox>
+    </vk-group>
+    <vk-group title="Where|and notes">
+        <modern-input id="evLocation" name="location" label="Place or link" placeholder="Board room, or a meeting link" max-length="200" label-font-size="13.5px"></modern-input>
+        <modern-input id="evNotes" name="notes" label="Notes" multiline="true" rows="3" max-length="4000" placeholder="Agenda, what to bring..." label-font-size="13.5px"></modern-input>
+        <div class="vk-ev-colors" role="radiogroup" aria-label="Colour">
+            <span class="vk-label">Colour</span>
+            @foreach (var c in colors)
+            {
+                <label title="@c.Name"><input type="radio" name="evColor" value="@c.Key" @(c.Key == "indigo" ? "checked" : "") /><i class="ev-@c.Key"></i></label>
+            }
+        </div>
+    </vk-group>
+    <vk-group title="Invite|people">
+        @if (Model.People.Count == 0)
+        {
+            <p class="vk-group-note">Nobody else in your company can sign in yet.</p>
+        }
+        else
+        {
+            <modern-input id="evPeopleFind" name="peopleFind" label="Find people" placeholder="Type a name" max-length="80" label-font-size="13.5px"></modern-input>
+            <div class="vk-ev-people" id="evPeople">
+                @foreach (var p in Model.People)
+                {
+                    <div class="vk-ev-person" data-name="@p.DisplayName.ToLowerInvariant() @p.Email">
+                        <vk-avatar name="@p.DisplayName" tone="@p.AvatarTone" size="30" />
+                        <modern-checkbox id="@($"evp_{p.UserId:N}")" name="people" value="@p.UserId.ToString()" label="@p.DisplayName" desc-text="@(p.JobTitle ?? p.Email)" label-font-size="13.5px"></modern-checkbox>
+                    </div>
+                }
+            </div>
+        }
+    </vk-group>
+</vk-dialog>
+
+@* ---- one event, opened ---- *@
+<dialog id="eventView" class="vk-dialog vk-ev-view" style="width:min(520px, calc(100vw - 32px))">
+    <form method="dialog" class="vk-dialog-inner">
+        <div class="vk-ev-view-band" id="evvBand"></div>
+        <div class="vk-dialog-head">
+            <span class="vk-dialog-ic"><i class="fa fa-calendar-check-o"></i></span>
+            <div class="vk-dialog-titles"><h3 id="evvTitle"></h3><p class="vk-dialog-sub" id="evvWhen"></p></div>
+            <button class="vk-dialog-x" value="cancel" aria-label="Close"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="vk-dialog-body" id="evvBody"></div>
+        <div class="vk-dialog-foot" id="evvFoot"></div>
+    </form>
+</dialog>
+
+<script type="application/json" id="daysCfg">@Html.Raw(JsonSerializer.Serialize(new
+{
+    me = Model.Me,
+    openNew = Model.OpenNew,
+    people = Model.People.Select(p => new { id = p.UserId, name = p.DisplayName, email = p.Email }),
+    blocked = Model.NeedsUpdate
+}).Replace("</", "<\\/"))</script>
+
+@section Scripts {
+    <vk-bundle name="days.js" />
+    <script>VKDays.init();</script>
+}
+@section Styles {
+    <vk-bundle name="days.css" />
+}

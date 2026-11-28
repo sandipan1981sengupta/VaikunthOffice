@@ -25,8 +25,12 @@ public sealed record TenantDto(
     /// <summary>The super admin let the client in again until this day, even with unpaid months.</summary>
     DateOnly? BillingHoldUntil = null,
     /// <summary>Sign-in is stopped because a payment is too late.</summary>
-    bool BillingBlocked = false)
+    bool BillingBlocked = false,
+    /// <summary>The client's own payment rules; null = the default rules.</summary>
+    int? DueDay = null, int? GraceDays = null, bool? AutoBlock = null)
 {
+    /// <summary>True when the client has payment rules of its own.</summary>
+    public bool HasOwnRules => DueDay is not null || GraceDays is not null || AutoBlock is not null;
     /// <summary>What the client pays a month: licenses × price per user.</summary>
     public decimal MonthlyBill => MaxUsers * PricePerUser;
     public bool IsFree => PricePerUser <= 0;
@@ -76,12 +80,15 @@ public sealed class UpdateTenantRequest
     public string Name { get; set; } = "";
     public int PlanId { get; set; }
     public SuiteAppFlags Apps { get; set; } = SuiteAppFlags.All;
-    /// <summary>Licenses: how many people may use Vaikunth Office. Null = use the plan's number.</summary>
+    /// <summary>Licenses: how many people may use Vaikunth Desk. Null = use the plan's number.</summary>
     public int? MaxUsersOverride { get; set; }
     public long? StorageQuotaMbOverride { get; set; }
     public bool IsActive { get; set; } = true;
     /// <summary>First month the client pays for. Null = leave it as it is.</summary>
     public DateOnly? BillingFrom { get; set; }
+    /// <summary>The client admin's name and email. Null = leave them as they are.</summary>
+    public string? AdminName { get; set; }
+    public string? AdminEmail { get; set; }
 }
 
 public static class Sizes

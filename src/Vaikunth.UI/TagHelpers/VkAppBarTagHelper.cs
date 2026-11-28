@@ -28,7 +28,7 @@ public sealed class VkAppBarTagHelper : TagHelper
         output.TagMode = TagMode.StartTagAndEndTag;
         output.Attributes.SetAttribute("class", "vk-appbar");
         output.Content.SetHtmlContent($"""
-            <a class="vk-appbar-waffle" href="{E(HomeUrl)}" title="Vaikunth Office: all apps"><i class="fa fa-th"></i></a>
+            <a class="vk-appbar-waffle" href="{E(HomeUrl)}" title="Vaikunth Desk: all apps"><i class="fa fa-th"></i></a>
             <a class="vk-appbar-app" href="{E(HomeUrl)}"><img src="{a.IconUrl}" alt="" width="26" height="26" /><span>{E(a.Name)}</span></a>
             <span class="vk-appbar-sep"></span>
             <input class="vk-doc-title" id="docTitle" value="{E(DocTitle)}" aria-label="File name" spellcheck="false" />
@@ -37,7 +37,7 @@ public sealed class VkAppBarTagHelper : TagHelper
             <label class="vk-appbar-search"><i class="fa fa-search"></i><input placeholder="Search (Alt+Q)" /></label>
             <span class="vk-appbar-fill"></span>
             <button type="button" class="vk-appbar-btn" data-cmd="present" hidden><i class="fa fa-play"></i> Present</button>
-            <button type="button" class="vk-appbar-btn vk-appbar-about" data-open-dialog="aboutDialog" title="About Vaikunth Office" aria-label="About Vaikunth Office"><i class="fa fa-info-circle"></i></button>
+            <button type="button" class="vk-appbar-btn vk-appbar-about" data-open-dialog="aboutDialog" title="About Vaikunth Desk" aria-label="About Vaikunth Desk"><i class="fa fa-info-circle"></i></button>
             <button type="button" class="vk-appbar-btn" data-cmd="fileExport" title="Download a copy ({E(SuiteApps.DownloadExt(a.App))})"><i class="fa fa-download"></i> <span class="vk-appbar-label">Download</span></button>
             <button type="button" class="vk-appbar-btn vk-share" data-cmd="share"><i class="fa fa-share-alt"></i> Share</button>
             <span class="vk-avatar tone-{AvatarTone}{(PhotoUrl is null ? "" : " has-photo")}" title="{E(UserName)}">{(PhotoUrl is null ? E(Vaikunth.DtoLibrary.Names.Initials(UserName)) : $"<img src=\"{E(PhotoUrl)}\" alt=\"\" />")}</span>

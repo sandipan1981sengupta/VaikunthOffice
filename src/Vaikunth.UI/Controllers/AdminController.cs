@@ -63,6 +63,8 @@ public sealed class AdminController : Controller
         // search, filters, sorting and paging happen in the page itself (the list of clients is small).
         // Opening the page also works out every bill and blocks / unblocks clients straight away.
         var billing = await _desk.RefreshAsync();
+        // X-Partial: the page asks for its content only (after a save, Refresh or a tab change), without the frame around it
+        ViewData["Partial"] = Request.Headers["X-Partial"] == "1";
         return View(new AdminViewModel
         {
             Stats = await _tenants.StatsAsync(), Clients = billing.Clients, Plans = await _tenants.GetPlansAsync(),
@@ -72,8 +74,18 @@ public sealed class AdminController : Controller
         });
     }
 
-    private IActionResult Back(Guid? sel = null, string? tab = null) =>
-        RedirectToAction(nameof(Index), new { sel, tab });
+    /// <summary>
+    /// After an action: a normal form post goes back to the page (the message shows there); a post from the page's own
+    /// script (fetch) gets the message as JSON plus the address to load the page content from, so nothing reloads.
+    /// </summary>
+    private IActionResult Back(Guid? sel = null, string? tab = null)
+    {
+        if (Request.Headers.XRequestedWith != "XMLHttpRequest") return RedirectToAction(nameof(Index), new { sel, tab });
+        var ok = TempData["Ok"] as string;
+        var error = TempData["Error"] as string;
+        TempData.Remove("ReopenNew");
+        return Json(new { ok = error is null, message = error ?? ok, url = Url.Action(nameof(Index), new { sel, tab }) });
+    }
 
     [HttpPost("create"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateTenantRequest request, int[]? apps)
@@ -87,10 +99,10 @@ public sealed class AdminController : Controller
             TempData["Ok"] = $"{request.Name} is set up. {request.AdminEmail} can sign in with the temporary password you chose.";
             return Back(result.TenantId);
         }
-        var sent = await SendWelcomeAsync(result.AdminUserId, request.AdminEmail.Trim(), request.AdminName.Trim(), request.Name.Trim());
-        TempData[sent ? "Ok" : "Error"] = sent
+        var problem = await SendWelcomeAsync(result.AdminUserId, request.AdminEmail.Trim(), request.AdminName.Trim(), request.Name.Trim());
+        TempData[problem is null ? "Ok" : "Error"] = problem is null
             ? $"{request.Name} is set up. A welcome email with a link to set the password is on its way to {request.AdminEmail}."
-            : $"{request.Name} is set up, but the welcome email couldn't be sent. Use Email admin link.";
+            : $"{request.Name} is set up, but {problem} Fix it, then use Email admin link.";
         return Back(result.TenantId);
     }
 
@@ -113,27 +125,50 @@ public sealed class AdminController : Controller
             return Back(tenantId);
         }
         var name = client.AdminName ?? client.AdminEmail.Split('@')[0];
-        bool sent;
-        if (client.AdminPending) sent = await SendWelcomeAsync(adminId, client.AdminEmail, name, client.Name);
-        else sent = await _links.CreateAsync(adminId, PasswordLinkPurpose.Reset) is string token
-                    && await _emails.SendPasswordResetAsync(client.AdminEmail, name, _suite.SetPasswordUrl(Request, token));
-        TempData[sent ? "Ok" : "Error"] = sent
+        string? problem;
+        if (client.AdminPending) problem = await SendWelcomeAsync(adminId, client.AdminEmail, name, client.Name);
+        else problem = await _links.CreateAsync(adminId, PasswordLinkPurpose.Reset) is not string token
+                ? $"a link was already sent to {client.AdminEmail} less than a minute ago. Wait a minute and try again."
+                : await _emails.SendPasswordResetAsync(client.AdminEmail, name, _suite.SetPasswordUrl(Request, token)) ? null : EmailProblem(client.AdminEmail);
+        TempData[problem is null ? "Ok" : "Error"] = problem is null
             ? (client.AdminPending ? $"A new welcome email is on its way to {client.AdminEmail}." : $"A link to choose a new password is on its way to {client.AdminEmail}.")
-            : "A link was sent less than a minute ago, or the email couldn't be sent. Try again shortly.";
+            : char.ToUpper(problem[0]) + problem[1..];
         return Back(tenantId);
     }
 
-    private async Task<bool> SendWelcomeAsync(Guid adminUserId, string email, string name, string company) =>
-        await _links.CreateAsync(adminUserId, PasswordLinkPurpose.Invite) is string token
-        && await _emails.SendClientWelcomeAsync(email, name, company, _suite.SetPasswordUrl(Request, token));
+    /// <summary>Sends the welcome email with a set-password link. Returns null when it went out, else what went wrong.</summary>
+    private async Task<string?> SendWelcomeAsync(Guid adminUserId, string email, string name, string company)
+    {
+        if (await _links.CreateAsync(adminUserId, PasswordLinkPurpose.Invite) is not string token)
+            return $"a link was already sent to {email} less than a minute ago. Wait a minute and try again.";
+        return await _emails.SendClientWelcomeAsync(email, name, company, _suite.SetPasswordUrl(Request, token)) ? null : EmailProblem(email);
+    }
+
+    private string EmailProblem(string email) =>
+        $"the email to {email} couldn't be sent: {_sender.LastErrorFor(email) ?? "the mail server didn't accept it. Check the Smtp settings."}";
 
     [HttpPost("update"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Update(UpdateTenantRequest request, int[]? apps, string? billingMonth)
     {
         request.Apps = Flags(apps);
         request.BillingFrom = ParseMonth(billingMonth);
+        var before = (await _tenants.ListAsync()).FirstOrDefault(t => t.TenantId == request.TenantId);
+        if (before?.AdminUserId is null) { request.AdminEmail = null; request.AdminName = null; }
         var result = await _tenants.UpdateAsync(request);
-        TempData[result.Succeeded ? "Ok" : "Error"] = result.Succeeded ? $"{request.Name} is updated." : result.Error;
+        if (!result.Succeeded) { TempData["Error"] = result.Error; return Back(request.TenantId); }
+        var newEmail = request.AdminEmail?.Trim().ToLowerInvariant();
+        var emailChanged = newEmail is not null && before?.AdminEmail is string old && !string.Equals(old, newEmail, StringComparison.OrdinalIgnoreCase);
+        if (emailChanged && before!.AdminPending && request.IsActive)
+        {
+            // the welcome went to the wrong address: send a fresh one to the corrected address (old links no longer work)
+            var problem = await SendWelcomeAsync(before.AdminUserId!.Value, newEmail!, request.AdminName!.Trim(), request.Name.Trim());
+            TempData[problem is null ? "Ok" : "Error"] = problem is null
+                ? $"{request.Name} is updated. A new welcome email is on its way to {newEmail}; the old link no longer works."
+                : $"{request.Name} is updated, but {problem}";
+        }
+        else TempData["Ok"] = emailChanged
+            ? $"{request.Name} is updated. Its admin now signs in with {newEmail}."
+            : $"{request.Name} is updated.";
         return Back(request.TenantId);
     }
 
@@ -232,6 +267,36 @@ public sealed class AdminController : Controller
             (autoBlock ? $"; a client that hasn't paid {graceDays} days after that is blocked." : "; nobody is blocked automatically.") +
             (o.Blocked > 0 ? $" {o.Blocked} {(o.Blocked == 1 ? "client is" : "clients are")} blocked now." : "");
         return Back(tab: "payments");
+    }
+
+    /// <summary>One client's own payment rules: due day, days before the block, auto-block and the first month it pays for.</summary>
+    [HttpPost("rules/client"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveClientRules(Guid tenantId, bool useDefault, int dueDay, int graceDays, bool autoBlock, string? billingMonth)
+    {
+        var client = (await _tenants.ListAsync()).FirstOrDefault(t => t.TenantId == tenantId);
+        if (client is null) { TempData["Error"] = "Pick the client."; return Back(tab: "payments"); }
+        OperationResult result;
+        try
+        {
+            result = await _billing.SaveClientRulesAsync(new ClientRulesRequest
+            {
+                TenantId = tenantId, UseDefault = useDefault, DueDay = dueDay, GraceDays = graceDays, AutoBlock = autoBlock, BillingFrom = ParseMonth(billingMonth)
+            });
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 2812)   // stored procedure not found
+        {
+            TempData["Error"] = "The database is older than this version. Run database/Vaikunth_Update.sql once, then save the rules again.";
+            return Back(tenantId, "payments");
+        }
+        if (!result.Succeeded) { TempData["Error"] = result.Error; return Back(tenantId, "payments"); }
+        var o = await _desk.RefreshAsync();
+        var bill = o.Bills.GetValueOrDefault(tenantId);
+        TempData["Ok"] = (useDefault
+                ? $"{client.Name} follows the default rules again."
+                : $"{client.Name}: payment due on the {Money.Ordinal(dueDay)} of every month" +
+                  (autoBlock ? $", blocked {graceDays} days after that if unpaid." : ", never blocked automatically."))
+            + (bill is not null ? $" Now: {bill.StateText}." : "");
+        return Back(tenantId, "payments");
     }
 
     /// <summary>Let a blocked or late client in again until a day (or take that off with clear=true).</summary>

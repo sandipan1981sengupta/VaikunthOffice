@@ -1,87 +1,192 @@
 @model LauncherViewModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Home";
-    // every app opens in its own browser tab; the landing page stays open in this one
+    ViewData["Section"] = "home";
+    ViewData["HeadSub"] = User.TenantName();
+    ViewData["FixedShell"] = true;  // the header and the banner stay; only the content under them scrolls
+    ViewData["AjaxPanel"] = true;   // rename, delete and star don't reload the page (js/ajax-panel.js)
+    Layout = ViewData["Partial"] is true ? "_PanelLayout" : "_AdminLayout";
+    var ok = TempData["Ok"] as string;
+    var error = TempData["Error"] as string;
+    var inv = CultureInfo.InvariantCulture;
+    // every app opens in its own browser tab; the home page stays open in this one
     string Open(SuiteApp app, Guid? id = null) => CurrentApp.EditorUrl(app, id);
     string New(SuiteApp app) => CurrentApp.NewUrl(app);
-}
-<section class="vk-launch-head">
-    <div>
-        <h1>@UserExtensions.Greeting(DateTime.Now), @User.FirstName()</h1>
-        <vk-verse variant="inline" />
-    </div>
-    <div class="vk-launch-actions">
-        @if (User.Apps().Has(SuiteApp.Pages)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Pages)" target="_blank"><i class="fa fa-file-text-o"></i> Blank document</a> }
-        @if (User.Apps().Has(SuiteApp.Slides)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Slides)" target="_blank"><i class="fa fa-television"></i> Blank deck</a> }
-        @if (User.Apps().Has(SuiteApp.Workbook)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Workbook)" target="_blank"><i class="fa fa-table"></i> Blank workbook</a> }
-        @if (User.Apps().Has(SuiteApp.Reader)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Reader)" target="_blank"><i class="fa fa-file-pdf-o"></i> Open a PDF</a> }
-        @if (User.Apps().Has(SuiteApp.Planner)) { <a class="vk-btn vk-btn-light" href="@New(SuiteApp.Planner)" target="_blank"><i class="fa fa-tasks"></i> New project</a> }
-    </div>
-</section>
-
-@if (TempData["Blocked"] is string blockedApp)
-{
-    <div class="vk-banner err"><i class="fa fa-lock"></i> @blockedApp isn't part of your company's plan. Ask your admin to add it.</div>
-}
-@if (Model.Bill is { } bill)
-{
-    var today = Vaikunth.ServiceLibrary.BillingCalculator.Today;
-    <div class="vk-banner @(bill.State == BillState.Due ? "info" : "warn") vk-bill-banner">
-        <i class="fa @(bill.State == BillState.Due ? "fa-calendar" : "fa-exclamation-triangle")" aria-hidden="true"></i>
-        <span>
-            @if (bill.State == BillState.Due)
-            {
-                <text>Your Vaikunth Office bill of <b>@Money.Rupees(bill.Outstanding)</b> for @Money.Month(bill.OldestUnpaid!.Value) is due on <b>@Money.Day(bill.DueOn!.Value)</b>.</text>
-            }
-            else if (bill.State == BillState.OnHold)
-            {
-                <text><b>@Money.Rupees(bill.Outstanding)</b> is still unpaid. Vaikunth Office lets your team in until <b>@Money.Day(bill.HoldUntil!.Value)</b>; please pay before then.</text>
-            }
-            else
-            {
-                <text>Your Vaikunth Office payment of <b>@Money.Rupees(bill.Outstanding)</b> is @bill.DaysLate(today) days late.
-                @if (bill.BlocksOn is DateOnly blocks) { <text>Your team can't sign in from <b>@Money.Day(blocks)</b> unless it is paid.</text> }</text>
-            }
-        </span>
-    </div>
-}
-<section class="vk-tiles" aria-label="Apps">
-    @foreach (var a in SuiteApps.All)
+    var mine = User.Apps();
+    var recent = Model.Recent;
+    var today = DateTime.UtcNow.Date;
+    var editedToday = recent.Count(f => f.ModifiedUtc.Date == today);
+    var editedWeek = recent.Count(f => f.ModifiedUtc >= DateTime.UtcNow.AddDays(-7));
+    var starred = recent.Count(f => f.IsStarred);
+    var appsOn = SuiteApps.All.Count(a => mine.Has(a.App));
+    var newLabels = new Dictionary<SuiteApp, (string Text, string Icon)>
     {
-        <vk-app-tile app="@a.Key" href="@Open(a.App)" new-href="@New(a.App)" target="_blank"
-                     is-locked="@(!User.Apps().Has(a.App))" />
-    }
-</section>
+        [SuiteApp.Pages] = ("Blank document", "file-text-o"), [SuiteApp.Slides] = ("Blank deck", "television"),
+        [SuiteApp.Workbook] = ("Blank workbook", "table"), [SuiteApp.Reader] = ("Open a PDF", "file-pdf-o"), [SuiteApp.Planner] = ("New project", "tasks"),
+        [SuiteApp.Days] = ("New event", "calendar-plus-o"), [SuiteApp.Inbox] = ("New email", "envelope-o")
+    };
+    var rows = recent.Select(f =>
+    {
+        var a = SuiteApps.For(f.App);
+        return new Dictionary<string, object?>
+        {
+            ["Id"] = f.DocumentId.ToString(), ["Icon"] = a.IconUrl, ["Name"] = f.Title, ["App"] = a.Kind, ["AppName"] = a.Name,
+            ["Owner"] = f.OwnerName, ["Modified"] = UserExtensions.Ago(f.ModifiedUtc),
+            ["When"] = f.ModifiedUtc.ToString("yyyy-MM-dd", inv), ["Star"] = f.IsStarred ? "★ Starred" : "",
+            ["url"] = Open(f.App, f.DocumentId), ["download"] = $"/{a.Key}/editor/download?id={f.DocumentId}",
+            ["title"] = f.Title, ["starred"] = f.IsStarred, ["ext"] = SuiteApps.DownloadExt(f.App), ["color"] = a.Color
+        };
+    }).ToList();
+}
 
-<section class="vk-recent glass-soft">
-    <div class="vk-recent-head">
-        <h2>Recent files</h2>
-        <nav class="vk-chips">
-            <a class="@(Model.Filter == "all" ? "on" : "")" href="/">All</a>
+<div class="vk-admin-ws vk-hub">
+    @* ---- hero: the greeting, the verse and one-click new files ---- *@
+    <section class="vk-hub-hero vk-glass-card">
+        <div class="vk-hub-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="vk-hub-hero-text">
+            <span class="vk-hub-date" id="hubDate"></span>
+            <h1><span id="hubGreeting">@UserExtensions.Greeting(DateTime.Now)</span>, <span class="vk-grad-text">@User.FirstName()</span></h1>
+            <vk-verse variant="inline" />
+            <div class="vk-hub-new">
+                @foreach (var a in SuiteApps.All.Where(a => mine.Has(a.App)))
+                {
+                    var n = newLabels[a.App];
+                    <a class="vk-hub-newbtn" href="@New(a.App)" target="@(a.InWorkspace ? null : "_blank")" style="--app:@a.Color;--app-tint:@a.Tint">
+                        <img src="@a.IconUrl" width="22" height="22" alt="" /> <span>@n.Text</span> <i class="fa fa-plus" aria-hidden="true"></i>
+                    </a>
+                }
+            </div>
+        </div>
+        <div class="vk-hub-orbit" aria-hidden="true">
+            <span class="vk-hub-ring r1"></span><span class="vk-hub-ring r2"></span>
+            <span class="vk-hub-core"><vk-app-icon app="suite" size="86" /></span>
+            @{ var i = 0; }
             @foreach (var a in SuiteApps.All)
             {
-                <a class="@(Model.Filter == a.Key ? "on" : "")" href="/?filter=@a.Key" style="--tile:@a.Color"><img src="@a.IconUrl" width="16" height="16" alt="" /> @a.Kind</a>
+                <img class="vk-hub-planet p@(i++)" src="@a.IconUrl" alt="" />
             }
-        </nav>
+        </div>
+    </section>
+
+    @* ---- everything under the banner scrolls; the header and the banner stay put ---- *@
+    <div class="vk-hub-scroll">
+    @if (error is not null) { <div hidden data-toast="@error" data-toast-kind="error"></div> }
+    @if (ok is not null) { <div hidden data-toast="@ok"></div> }
+    @if (TempData["Blocked"] is string blockedApp)
+    {
+        <div class="vk-banner warn"><i class="fa fa-lock"></i><span>@blockedApp isn't part of your company's plan. Ask your admin to add it.</span></div>
+    }
+    @if (Model.Bill is { } bill)
+    {
+        var bt = Vaikunth.ServiceLibrary.BillingCalculator.Today;
+        <div class="vk-banner @(bill.State == BillState.Due ? "info" : "warn")">
+            <i class="fa @(bill.State == BillState.Due ? "fa-calendar" : "fa-exclamation-triangle")" aria-hidden="true"></i>
+            <span>
+                @if (bill.State == BillState.Due)
+                {
+                    <text>Your Vaikunth Desk bill of <b>@Money.Rupees(bill.Outstanding)</b> for @Money.Month(bill.OldestUnpaid!.Value) is due on <b>@Money.Day(bill.DueOn!.Value)</b>.</text>
+                }
+                else if (bill.State == BillState.OnHold)
+                {
+                    <text><b>@Money.Rupees(bill.Outstanding)</b> is still unpaid. Vaikunth Desk lets your team in until <b>@Money.Day(bill.HoldUntil!.Value)</b>; please pay before then.</text>
+                }
+                else
+                {
+                    <text>Your Vaikunth Desk payment of <b>@Money.Rupees(bill.Outstanding)</b> is @bill.DaysLate(bt) days late.
+                    @if (bill.BlocksOn is DateOnly blocks) { <text>Your team can't sign in from <b>@Money.Day(blocks)</b> unless it is paid.</text> }</text>
+                }
+            </span>
+        </div>
+    }
+
+    @* ---- the apps ---- *@
+    <section class="vk-hub-apps" aria-label="Apps">
+        @foreach (var a in SuiteApps.All)
+        {
+            var on = mine.Has(a.App);
+            <article class="vk-hub-app vk-glass-card @(on ? "" : "is-locked")" style="--app:@a.Color;--app-tint:@a.Tint">
+                <a class="vk-hub-app-main" href="@(on ? Open(a.App) : "#")" target="@(on && !a.InWorkspace ? "_blank" : null)" aria-disabled="@(on ? null : "true")">
+                    <span class="vk-hub-app-glow" aria-hidden="true"></span>
+                    <span class="vk-hub-app-ic"><img src="@a.IconUrl" alt="" /></span>
+                    <b>@a.Name</b>
+                    <span class="vk-hub-app-kind">@a.Kind</span>
+                    <small>@a.Tagline</small>
+                </a>
+                <div class="vk-hub-app-foot">
+                    @if (on)
+                    {
+                        <a href="@Open(a.App)" target="@(a.InWorkspace ? null : "_blank")"><i class="fa fa-@(a.InWorkspace ? "arrow-right" : "external-link")" aria-hidden="true"></i> Open</a>
+                        <a href="@New(a.App)" target="@(a.InWorkspace ? null : "_blank")" class="vk-hub-app-new"><i class="fa fa-plus" aria-hidden="true"></i> New</a>
+                    }
+                    else
+                    {
+                        <span class="vk-hub-lock"><i class="fa fa-lock" aria-hidden="true"></i> Not in your plan</span>
+                    }
+                </div>
+            </article>
+        }
+    </section>
+
+    @* ---- key figures ---- *@
+    <section class="vk-kpis vk-kpis-6 vk-glass-card" aria-label="Your work">
+        <vk-kpi icon="clock-o" tone="blue" label="Edited today" value="@editedToday.ToString()" sub="@($"{editedWeek} this week")" />
+        <vk-kpi icon="files-o" tone="violet" label="Recent files" value="@recent.Count.ToString()" sub="yours and shared with you" />
+        <vk-kpi icon="star" tone="amber" label="Starred" value="@starred.ToString()" sub="files you keep close" />
+        <vk-kpi icon="th-large" tone="green" label="Apps" value="@($"{appsOn} of {SuiteApps.All.Count}")" sub="in your company's plan" />
+        <vk-kpi icon="calendar" tone="teal" label="Events this week" value="@Model.EventsThisWeek.ToString()" sub="@(Model.NextEvent ?? "nothing coming up")" />
+        <vk-kpi icon="envelope-o" tone="blue" label="Unread mail" value="@Model.UnreadMail.ToString()" sub="in Sudarshana Inbox" />
+    </section>
+
+    @* ---- recent files: what to do with the picked file ---- *@
+    <section class="vk-hub-filebar vk-glass-card" id="fileBar" data-state="empty">
+        <span class="vk-hub-filebar-ic" id="fbIcon"><i class="fa fa-folder-open-o" aria-hidden="true"></i></span>
+        <span class="vk-hub-filebar-text">
+            <b id="fbName">Your files in the cloud</b>
+            <small id="fbSub">Pick a file in the list below to open, download, rename, star or delete it. Double-click opens it.</small>
+        </span>
+        <span class="vk-fill"></span>
+        <div class="vk-hub-filebar-btns">
+            <vk-action-btn text="Open" icon="external-link" cmd="fileOpen" tone="blue" tooltip="Open the file in its app, in a new tab" />
+            <vk-action-btn text="Download" icon="download" cmd="fileDownload" tone="green" tooltip="Download it as a Word, Excel, PowerPoint or PDF file" />
+            <vk-action-btn text="Rename" icon="i-cursor" cmd="fileRename" tone="amber" tooltip="Give the file a new name" />
+            <vk-action-btn text="Star" icon="star-o" cmd="fileStar" tone="violet" tooltip="Keep the file close: starred files are easy to find" />
+            <vk-action-btn text="Delete" icon="trash" cmd="fileDelete" tone="red" tooltip="Delete the file" />
+        </div>
+    </section>
+
+    @* ---- recent files ---- *@
+    <modern-table id="recentGrid" name="SelectedFile"
+                  grid-name="Recent files" icon="clock-o" icon-background-color="#EEF0FB" icon-color="#2B2F86"
+                  searchable="true" search-placeholder="Search files..."
+                  show-filter-button="true" column-toggle="true" selectable="true" enable-paging="true" page-size="10"
+                  is-animated-scrolling="true" row-height="54px" header-height="44px" row-font-size="13.5px"
+                  row-id-field="Id" table-height="520px" items="rows">
+        <column field="Id" header="Id" visible="false" filterable="false" sortable="false"></column>
+        <column field="Icon" header=" " type="image" image-size="30px" width="56px" filterable="false" sortable="false"></column>
+        <column field="Name" header="Name" width="280px"></column>
+        <column field="App" header="App" type="badge" width="130px">
+            @foreach (var a in SuiteApps.FileApps) { <badge value="@a.Kind" color="@a.Tint"></badge> }
+        </column>
+        <column field="AppName" header="Opens in" width="190px" visible="false"></column>
+        <column field="Owner" header="Owner" width="150px"></column>
+        <column field="Modified" header="Modified" width="130px"></column>
+        <column field="When" header="Date" width="120px" format="dd-mm-yyyy"></column>
+        <column field="Star" header="Starred" width="110px"></column>
+    </modern-table>
     </div>
-    <table class="vk-files">
-        <thead><tr><th>Name</th><th>App</th><th>Owner</th><th>Modified</th><th></th></tr></thead>
-        <tbody>
-            @foreach (var f in Model.Recent)
-            {
-                var a = SuiteApps.For(f.App);
-                <tr>
-                    <td><a class="vk-file-name" href="@Open(f.App, f.DocumentId)" target="_blank"><img src="@a.IconUrl" width="28" height="28" alt="" /> @f.Title</a></td>
-                    <td class="vk-muted">@a.Name</td>
-                    <td class="vk-muted">@f.OwnerName</td>
-                    <td class="vk-muted">@UserExtensions.Ago(f.ModifiedUtc)</td>
-                    <td class="vk-star">@if (f.IsStarred) { <i class="fa fa-star" title="Starred"></i> } else { <i class="fa fa-star-o"></i> }</td>
-                </tr>
-            }
-            @if (Model.Recent.Count == 0)
-            {
-                <tr><td colspan="5" class="vk-empty">Nothing here yet. Start a new file above.</td></tr>
-            }
-        </tbody>
-    </table>
-</section>
+</div>
+
+@* ---- Rename a file ---- *@
+<vk-dialog id="renameDialog" title="Rename file" subtitle="Only the name changes; what is inside stays as it is."
+           icon="i-cursor" ok-text="Rename" ok-icon="check" cancel-text="Cancel" action="/files/rename" width="520px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="documentId" id="renameId" />
+    <modern-input id="renameTitle" name="title" label="File name" mandatory="true" max-length="200" label-font-size="13.5px"></modern-input>
+    <p class="vk-group-note" id="renameNote"></p>
+</vk-dialog>
+
+@section Scripts {
+    <vk-bundle name="home.js" />
+    <script>VKHome.init();</script>
+}

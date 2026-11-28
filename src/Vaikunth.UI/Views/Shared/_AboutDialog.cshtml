@@ -3,7 +3,7 @@
 @using Vaikunth.ServiceLibrary
 @inject CurrentApp Current
 @inject IConfiguration Config
-@* About Vaikunth Office: the same glass window on every page (launcher, People, Clients, the five apps, sign-in).
+@* About Vaikunth Desk: the same glass window on every page (launcher, People, Clients, the five apps, sign-in).
    Open it with any element that has data-open-dialog="aboutDialog". *@
 @{
     var v = Assembly.GetEntryAssembly()?.GetName().Version;
@@ -17,7 +17,7 @@
         <div class="vk-about-head">
             <button type="button" class="vk-dialog-x" data-close aria-label="Close"><i class="fa fa-times" aria-hidden="true"></i></button>
             <vk-app-icon app="suite" size="84" />
-            <h2 id="aboutTitle" class="vk-about-title">VAIKUNTH OFFICE</h2>
+            <h2 id="aboutTitle" class="vk-about-title">VAIKUNTH DESK</h2>
             <div class="vk-muted">@SuiteApps.Suite.Tagline</div>
             <span class="vk-pill">Version @version</span>
         </div>
@@ -38,7 +38,7 @@
             <vk-verse variant="box" />
         </div>
         <div class="vk-dialog-foot">
-            <span class="vk-muted vk-small">© @DateTime.UtcNow.Year Vaikunth Office</span>
+            <span class="vk-muted vk-small">© @DateTime.UtcNow.Year @SuiteOptions.Maker · Vaikunth Desk</span>
             <span class="vk-fill"></span>
             <button type="button" class="vk-btn vk-btn-primary" data-close>Close</button>
         </div>

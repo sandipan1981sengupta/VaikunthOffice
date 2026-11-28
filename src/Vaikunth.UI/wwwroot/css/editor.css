@@ -1,4 +1,4 @@
-/* Vaikunth Office · the editor frame shared by the three apps: app bar, ribbon, status bar.
+/* Vaikunth Desk · the editor frame shared by the three apps: app bar, ribbon, status bar.
    --app / --app-tint are set on <body> from the app's colours. */
 .vk-editor-body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #F3F4F8; }
 

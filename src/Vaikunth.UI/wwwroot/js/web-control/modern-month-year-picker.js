@@ -51,7 +51,13 @@ window.ModernMonthYearPicker.init = function (context) {
             return;
         }
 
+        var inDialog = !!input.closest("dialog");
+        var floatFn = (inDialog && typeof mdpwlFloat === "function") ? mdpwlFloat : function () { };
         pickers[input.id] = flatpickr(input, {
+            // Vaikunth: inside a pop-up <dialog> (top layer) the calendar opens in place and floats next to the
+            // field (same as the date picker); appended to <body> it would be drawn behind the dialog.
+            static: inDialog,
+            onOpen: floatFn, onYearChange: floatFn,
             disableMobile: true,   // always our own calendar (phones would otherwise get the browser's built-in date picker)
             plugins: [new monthSelectPlugin({
                 shorthand: true,       // "Aug" instead of "August"

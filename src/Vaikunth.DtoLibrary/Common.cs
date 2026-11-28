@@ -1,6 +1,6 @@
 namespace Vaikunth.DtoLibrary;
 
-/// <summary>The five apps of Vaikunth Office. The byte value is what the database stores in Vaikunth_Documents.AppKind.</summary>
+/// <summary>The seven apps of Vaikunth Desk. The byte value is what the database stores in Vaikunth_Documents.AppKind.</summary>
 public enum SuiteApp : byte
 {
     /// <summary>Akshara Pages: documents (Word).</summary>
@@ -12,12 +12,16 @@ public enum SuiteApp : byte
     /// <summary>Shashvata Reader: PDFs, with notes and bookmarks.</summary>
     Reader = 4,
     /// <summary>Dhruva Planner: projects, tasks, board and timeline.</summary>
-    Planner = 5
+    Planner = 5,
+    /// <summary>Vaijayanti Days: the calendar (events, meetings, invites).</summary>
+    Days = 6,
+    /// <summary>Sudarshana Inbox: email between the office's people (and out to other addresses).</summary>
+    Inbox = 7
 }
 
 public static class AppRoles
 {
-    /// <summary>Runs Vaikunth Office itself: creates and manages clients. Belongs to no client (TenantId NULL).</summary>
+    /// <summary>Runs Vaikunth Desk itself: creates and manages clients. Belongs to no client (TenantId NULL).</summary>
     public const string SuperAdmin = "SuperAdmin";
     /// <summary>Admin of one client company.</summary>
     public const string TenantAdmin = "TenantAdmin";
@@ -36,7 +40,7 @@ public static class AppClaims
     public const string PhotoVersion = "photo_v";
 }
 
-/// <summary>Which of the five apps a client has (Vaikunth_Tenants.AppsEnabled). 31 = all five.</summary>
+/// <summary>Which apps a client has (Vaikunth_Tenants.AppsEnabled). 127 = all seven.</summary>
 [Flags]
 public enum SuiteAppFlags : byte
 {
@@ -46,7 +50,9 @@ public enum SuiteAppFlags : byte
     Slides = 4,
     Reader = 8,
     Planner = 16,
-    All = Pages | Workbook | Slides | Reader | Planner
+    Days = 32,
+    Inbox = 64,
+    All = Pages | Workbook | Slides | Reader | Planner | Days | Inbox
 }
 
 public static class SuiteAppFlagsExtensions
@@ -58,6 +64,8 @@ public static class SuiteAppFlagsExtensions
         SuiteApp.Slides => SuiteAppFlags.Slides,
         SuiteApp.Reader => SuiteAppFlags.Reader,
         SuiteApp.Planner => SuiteAppFlags.Planner,
+        SuiteApp.Days => SuiteAppFlags.Days,
+        SuiteApp.Inbox => SuiteAppFlags.Inbox,
         _ => SuiteAppFlags.None
     };
 

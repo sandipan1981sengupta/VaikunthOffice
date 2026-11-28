@@ -13,18 +13,31 @@ namespace Vaikunth.UI.Infrastructure;
 
 public static class WebRegistration
 {
-    /// <summary>The sign-in cookie of Vaikunth Office.</summary>
+    /// <summary>The sign-in cookie of Vaikunth Desk.</summary>
     public const string CookieName = ".Vaikunth.Auth";
 
     /// <summary>
-    /// Everything Vaikunth Office needs: MVC, the shared UI, the three apps (as areas /pages, /workbook, /slides),
+    /// Everything Vaikunth Desk needs: MVC, the shared UI, the three apps (as areas /pages, /workbook, /slides),
     /// sign-in and services. Call from Program.cs: builder.AddVaikunthOffice().
     /// </summary>
     public static WebApplicationBuilder AddVaikunthOffice(this WebApplicationBuilder builder)
     {
         var services = builder.Services;
+        // appsettings.Local.json: this server's own passwords. Read after appsettings.json and wins; never shipped in the zip.
+        // Environment variables still win over it (they are added again so they stay last).
+        builder.Configuration.AddJsonFile(Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json"), optional: true, reloadOnChange: true);
+        builder.Configuration.AddEnvironmentVariables();
         var suite = builder.Configuration.GetSection("Suite").Get<SuiteOptions>() ?? new SuiteOptions();
         services.Configure<SuiteOptions>(builder.Configuration.GetSection("Suite"));
+        services.AddVaikunthBundles();
+        services.AddResponseCompression(o =>
+        {
+            o.EnableForHttps = true;   // only scripts, styles and pictures that are the same for everyone (no page carries a secret)
+            o.MimeTypes = ["text/css", "text/javascript", "application/javascript", "image/svg+xml"];
+            o.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+            o.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+        });
+        if (!string.IsNullOrWhiteSpace(suite.Company)) SuiteOptions.Maker = suite.Company.Trim();
         services.AddHttpContextAccessor();
         services.AddScoped(sp => CurrentApp.ForPath(sp.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext?.Request.Path.Value));
 
@@ -39,7 +52,7 @@ public static class WebRegistration
             else if (!Path.IsPathRooted(o.RootPath)) o.RootPath = Path.Combine(contentRoot, o.RootPath);   // e.g. "App_Data/files"
         });
         if (!ServiceRegistration.UsesMockData(builder.Configuration))
-            foreach (var app in SuiteApps.All.Select(a => a.App))
+            foreach (var app in SuiteApps.FileApps.Select(a => a.App))
                 services.AddSingleton<Microsoft.Extensions.Hosting.IHostedService>(sp => new DocumentMoveService(sp.GetRequiredService<Vaikunth.ServiceLibrary.Data.SqlDb>(),
                     sp.GetRequiredService<IDocumentFileStore>(), sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DocumentMoveService>>(), app));
 
@@ -73,7 +86,7 @@ public static class WebRegistration
         return builder;
     }
 
-    /// <summary>The middleware and routes of Vaikunth Office.</summary>
+    /// <summary>The middleware and routes of Vaikunth Desk.</summary>
     public static WebApplication UseVaikunthOffice(this WebApplication app)
     {
         if (!app.Environment.IsDevelopment())
@@ -94,11 +107,29 @@ public static class WebRegistration
                 limit.MaxRequestBodySize = maxSave;
             return next(ctx);
         });
+        // the bundles (jQuery, the controls, the suite's scripts and styles) go out compressed; pages stay as they are
+        app.UseResponseCompression();
         app.UseStaticFiles();
+        // a page answers with its whole frame or only its content (X-Partial: 1, when moving inside the workspace):
+        // tell caches the two are different
+        app.Use((ctx, next) =>
+        {
+            ctx.Response.OnStarting(() =>
+            {
+                if ((ctx.Response.ContentType ?? "").StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Response.Headers.Append("Vary", "X-Partial");
+                    ctx.Response.Headers.CacheControl = "no-cache, private";
+                }
+                return Task.CompletedTask;
+            });
+            return next(ctx);
+        });
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapStaticAssets();
+        app.MapVaikunthBundles();
         // /pages/editor, /workbook/editor, /slides/editor: each app's editor lives in its own area
         app.MapControllerRoute("apps", "{area:exists}/{controller=Editor}/{action=Index}/{id?}").WithStaticAssets();
         app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}").WithStaticAssets();

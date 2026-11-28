@@ -11,7 +11,7 @@ public static class ServiceRegistration
     public static bool UsesMockData(IConfiguration config) => string.IsNullOrWhiteSpace(config.GetConnectionString("Default"));
 
     /// <summary>
-    /// Registers every Vaikunth Office service. Call once from each app's Program.cs:
+    /// Registers every Vaikunth Desk service. Call once from each app's Program.cs:
     /// builder.Services.AddVaikunthServices(builder.Configuration).
     /// With ConnectionStrings:Default set, services call the stored procedures in /database;
     /// without it, they use in-memory sample data (handy for the mock screens).
@@ -40,6 +40,8 @@ public static class ServiceRegistration
             services.AddSingleton<IDocumentService, MockDocumentService>();
             services.AddSingleton<ITenantService, MockTenantService>();
             services.AddSingleton<IUserPhotoService, MockUserPhotoService>();
+            services.AddSingleton<ICalendarService, MockCalendarService>();
+            services.AddSingleton<IMailService, MockMailService>();
             return services;
         }
 
@@ -50,6 +52,8 @@ public static class ServiceRegistration
         services.AddScoped<IPasswordLinkService, PasswordLinkService>();
         services.AddScoped<IUserPhotoService, UserPhotoService>();
         services.AddScoped<IBillingService, BillingService>();
+        services.AddScoped<ICalendarService, CalendarService>();
+        services.AddScoped<IMailService, MailService>();
         return services;
     }
 }

@@ -1,4 +1,4 @@
-/* Vaikunth Office · the workspace frame (super admin): theme, maximize, clock, tabs and the data grid.
+/* Vaikunth Desk · the workspace frame (super admin): theme, maximize, clock, tabs and the data grid.
    Loaded after vaikunth.js by _AdminLayout. */
 (function () {
     "use strict";
@@ -233,5 +233,65 @@
     };
 
     // messages from the server come in as toasts too
-    document.querySelectorAll("[data-toast]").forEach(function (t) { VK.toast(t.getAttribute("data-toast")); });
+    document.querySelectorAll("[data-toast]").forEach(function (t) { VK.toast(t.getAttribute("data-toast"), t.getAttribute("data-toast-kind") || "success"); t.remove(); });
+
+    // header card: flush at the top while the page is scrolled, so nothing shows above it
+    (function () {
+        var head = document.querySelector(".vk-ws-head");
+        if (!head) return;
+        function stick() { head.classList.toggle("is-stuck", window.scrollY > 12); }
+        window.addEventListener("scroll", stick, { passive: true });
+        stick();
+    })();
+})();
+
+// ---------- side rail: a highlight box that slides from the item you were on to the one you open ----------
+(function () {
+    var rail = document.querySelector(".vk-rail");
+    if (!rail) return;
+    var items = Array.prototype.slice.call(rail.querySelectorAll(".vk-rail-item"));
+    var on = rail.querySelector(".vk-rail-item.on");
+    if (!items.length) return;
+    var ind = document.createElement("span");
+    ind.className = "vk-rail-ind no-anim";
+    ind.setAttribute("aria-hidden", "true");
+    rail.insertBefore(ind, rail.firstChild);
+    rail.classList.add("has-ind");
+    function place(item) {
+        ind.hidden = !item;
+        if (item) { ind.style.top = item.offsetTop + "px"; ind.style.height = item.offsetHeight + "px"; }
+    }
+    // a full page load (F5, sign-in): start from the item of the last page, if the browser remembers it
+    var from = null;
+    try { from = sessionStorage.getItem("vk-rail-from"); sessionStorage.removeItem("vk-rail-from"); } catch (e) { }
+    place(items.filter(function (i) { return i.getAttribute("href") === from; })[0] || on);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { ind.classList.remove("no-anim"); place(on); }); });
+    window.addEventListener("resize", function () { place(rail.querySelector(".vk-rail-item.on")); });
+    /** Marks the rail item of a section and slides the box to it (the AJAX panel calls this after it opens a page). */
+    window.VK = window.VK || {};
+    VK.railTo = function (section, href) {
+        var target = null;
+        items.forEach(function (i) {
+            var hit = (section && i.getAttribute("data-section") === section) || (!section && href && i.getAttribute("href") === href);
+            i.classList.toggle("on", !!hit);
+            if (hit) { i.setAttribute("aria-current", "page"); target = i; } else i.removeAttribute("aria-current");
+        });
+        place(target);
+    };
+})();
+
+/* the Inbox item in the side rail shows how many messages aren't read yet (Sudarshana Inbox keeps it fresh on its own page) */
+(function () {
+    "use strict";
+    var badge = document.getElementById("railUnread");
+    if (!badge) return;
+    function check() {
+        if (document.hidden || location.pathname.toLowerCase().indexOf("/inbox") === 0) return;
+        fetch("/inbox/editor/counts", { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (res) { if (res && res.ok) { var n = res.counts.inbox; badge.textContent = n > 99 ? "99+" : n; badge.hidden = !n; } })
+            .catch(function () { });
+    }
+    check();
+    setInterval(check, 120000);
 })();

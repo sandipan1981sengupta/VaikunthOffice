@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- All business functions of Vaikunth Office: sign-in checks and documents, as stored procedure calls.
+  <!-- All business functions of Vaikunth Desk: sign-in checks and documents, as stored procedure calls.
        When ConnectionStrings:Default is empty the in-memory mock services are used instead (Mock folder). -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

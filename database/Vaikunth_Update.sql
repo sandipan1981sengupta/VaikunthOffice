@@ -1,5 +1,5 @@
 /* =====================================================================
-   Vaikunth Office · Vaikunth_Update.sql  (the ONE database script)
+   Vaikunth Desk · Vaikunth_Update.sql  (the ONE database script)
 
    Run this single file to create or update the whole database. It is safe to run again and again:
      - creates every table that is missing (all names start with Vaikunth_),
@@ -80,15 +80,15 @@ CREATE TABLE dbo.Vaikunth_Plans
     Name            NVARCHAR(50)     NOT NULL CONSTRAINT UX_Vaikunth_Plans_Name UNIQUE,
     MaxUsers        INT              NOT NULL,
     StorageQuotaMb  BIGINT           NOT NULL,
-    AppsEnabled     TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Plans_Apps DEFAULT (31),  -- 1 Pages + 2 Workbook + 4 Slides + 8 Reader + 16 Planner
+    AppsEnabled     TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Plans_Apps DEFAULT (127),  -- 1 Pages + 2 Workbook + 4 Slides + 8 Reader + 16 Planner + 32 Days + 64 Inbox
     PricePerUser    DECIMAL(10, 2)   NOT NULL CONSTRAINT DF_Vaikunth_Plans_Price DEFAULT (0)
 );
 GO
 IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_Plans)
     INSERT dbo.Vaikunth_Plans (Name, MaxUsers, StorageQuotaMb, AppsEnabled, PricePerUser) VALUES
-        (N'Starter', 10, 1024, 31, 0),
-        (N'Business', 50, 10240, 31, 149),
-        (N'Enterprise', 500, 102400, 31, 299);
+        (N'Starter', 10, 1024, 127, 0),
+        (N'Business', 50, 10240, 127, 149),
+        (N'Enterprise', 500, 102400, 127, 299);
 GO
 
 /* ---------- Tenants: one row per client company ---------- */
@@ -99,7 +99,7 @@ CREATE TABLE dbo.Vaikunth_Tenants
     Name                    NVARCHAR(120)    NOT NULL,
     Slug                    NVARCHAR(40)     NOT NULL CONSTRAINT UX_Vaikunth_Tenants_Slug UNIQUE,
     PlanId                  INT              NOT NULL CONSTRAINT FK_Vaikunth_Tenants_Plans REFERENCES dbo.Vaikunth_Plans(PlanId),
-    AppsEnabled             TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Apps DEFAULT (31),
+    AppsEnabled             TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Apps DEFAULT (127),
     IsActive                BIT              NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Active DEFAULT (1),
     MaxUsersOverride        INT              NULL,
     StorageQuotaMbOverride  BIGINT           NULL,
@@ -108,7 +108,7 @@ CREATE TABLE dbo.Vaikunth_Tenants
 );
 GO
 
-/* ---------- Users (TenantId NULL = Vaikunth Office super admin) ---------- */
+/* ---------- Users (TenantId NULL = Vaikunth Desk super admin) ---------- */
 IF OBJECT_ID(N'dbo.Vaikunth_Users', N'U') IS NULL
 CREATE TABLE dbo.Vaikunth_Users
 (
@@ -128,7 +128,7 @@ CREATE TABLE dbo.Vaikunth_Users
     PhotoType       NVARCHAR(50)     NULL,
     PhotoUpdatedUtc DATETIME2(3)     NULL,
     Department      NVARCHAR(80)     NULL,              -- e.g. Sales, Finance (set by the client admin)
-    JobTitle        NVARCHAR(80)     NULL,              -- e.g. Accountant. Role above is what they may do in Vaikunth Office
+    JobTitle        NVARCHAR(80)     NULL,              -- e.g. Accountant. Role above is what they may do in Vaikunth Desk
     JoiningDate     DATE             NULL               -- the day they joined the company
 );
 GO
@@ -194,7 +194,7 @@ BEGIN
         ALTER TABLE dbo.Vaikunth_Tenants DROP CONSTRAINT DF_Vaikunth_Tenants_Apps;
     ALTER TABLE dbo.Vaikunth_Tenants ADD CONSTRAINT DF_Vaikunth_Tenants_Apps DEFAULT (31) FOR AppsEnabled;
     COMMIT;
-    PRINT N'Vaikunth Office: Shashvata Reader and Dhruva Planner added to plans and clients that had every app.';
+    PRINT N'Vaikunth Desk: Shashvata Reader and Dhruva Planner added to plans and clients that had every app.';
 END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Vaikunth_Documents') AND name LIKE N'IX[_]%[_]Documents[_]Owner')
@@ -274,8 +274,17 @@ BEGIN
         BillingBlocked BIT NOT NULL CONSTRAINT DF_Vaikunth_Tenants_Blocked DEFAULT (0);
     -- clients that exist before billing was added start paying from next month, so nobody is late on day one
     EXEC sys.sp_executesql N'UPDATE dbo.Vaikunth_Tenants SET BillingFrom = DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(SYSUTCDATETIME()), MONTH(SYSUTCDATETIME()), 1)) WHERE BillingFrom IS NULL;';
-    PRINT N'Vaikunth Office: billing added. Existing clients pay from next month.';
+    PRINT N'Vaikunth Desk: billing added. Existing clients pay from next month.';
 END
+GO
+
+/* Each client can have its own payment rules; NULL = the default rules (Vaikunth_BillingSettings). */
+IF COL_LENGTH(N'dbo.Vaikunth_Tenants', N'DueDay') IS NULL
+    ALTER TABLE dbo.Vaikunth_Tenants ADD DueDay TINYINT NULL, GraceDays SMALLINT NULL, AutoBlock BIT NULL;
+GO
+IF OBJECT_ID(N'dbo.CK_Vaikunth_Tenants_Rules', N'C') IS NULL
+    ALTER TABLE dbo.Vaikunth_Tenants ADD CONSTRAINT CK_Vaikunth_Tenants_Rules
+        CHECK ((DueDay IS NULL OR DueDay BETWEEN 1 AND 28) AND (GraceDays IS NULL OR GraceDays BETWEEN 0 AND 365));
 GO
 
 /* The super admin's billing rules: one row. DueDay = payment due on this day of every month (1 to 28).
@@ -317,6 +326,92 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Vaikunth_Payments_Ten
     CREATE INDEX IX_Vaikunth_Payments_Tenant ON dbo.Vaikunth_Payments(TenantId, Period);
 GO
 
+/* Upgrade to seven apps (Vaijayanti Days = 6 / flag 32, Sudarshana Inbox = 7 / flag 64). Runs once, while the
+   default is still 31: plans and clients that had all five apps get the two new ones too (127), and the defaults
+   become 127. A plan or client that had only some apps keeps exactly those. */
+IF EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_Vaikunth_Plans_Apps' AND definition NOT LIKE N'%127%')
+BEGIN
+    BEGIN TRAN;
+    UPDATE dbo.Vaikunth_Plans   SET AppsEnabled = 127 WHERE AppsEnabled = 31;
+    UPDATE dbo.Vaikunth_Tenants SET AppsEnabled = 127 WHERE AppsEnabled = 31;
+    ALTER TABLE dbo.Vaikunth_Plans DROP CONSTRAINT DF_Vaikunth_Plans_Apps;
+    ALTER TABLE dbo.Vaikunth_Plans ADD CONSTRAINT DF_Vaikunth_Plans_Apps DEFAULT (127) FOR AppsEnabled;
+    IF EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_Vaikunth_Tenants_Apps')
+        ALTER TABLE dbo.Vaikunth_Tenants DROP CONSTRAINT DF_Vaikunth_Tenants_Apps;
+    ALTER TABLE dbo.Vaikunth_Tenants ADD CONSTRAINT DF_Vaikunth_Tenants_Apps DEFAULT (127) FOR AppsEnabled;
+    COMMIT;
+    PRINT N'Vaikunth Desk: Vaijayanti Days and Sudarshana Inbox added to plans and clients that had every app.';
+END
+GO
+
+/* Vaijayanti Days: events. Times are UTC; an all-day event runs from midnight of its first day to midnight after its last. */
+IF OBJECT_ID(N'dbo.Vaikunth_Events', N'U') IS NULL
+CREATE TABLE dbo.Vaikunth_Events
+(
+    EventId     UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Vaikunth_Events PRIMARY KEY,
+    TenantId    UNIQUEIDENTIFIER NOT NULL CONSTRAINT FK_Vaikunth_Events_Tenants REFERENCES dbo.Vaikunth_Tenants(TenantId) ON DELETE CASCADE,
+    OwnerId     UNIQUEIDENTIFIER NOT NULL,
+    Title       NVARCHAR(200)    NOT NULL,
+    StartUtc    DATETIME2(0)     NOT NULL,
+    EndUtc      DATETIME2(0)     NOT NULL,
+    AllDay      BIT              NOT NULL CONSTRAINT DF_Vaikunth_Events_AllDay DEFAULT (0),
+    Location    NVARCHAR(200)    NULL,
+    Notes       NVARCHAR(4000)   NULL,
+    Color       VARCHAR(20)      NOT NULL CONSTRAINT DF_Vaikunth_Events_Color DEFAULT ('indigo'),
+    CreatedUtc  DATETIME2(3)     NOT NULL CONSTRAINT DF_Vaikunth_Events_Created DEFAULT (SYSUTCDATETIME()),
+    UpdatedUtc  DATETIME2(3)     NOT NULL CONSTRAINT DF_Vaikunth_Events_Updated DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT CK_Vaikunth_Events_Times CHECK (EndUtc >= StartUtc)
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Vaikunth_Events_Tenant')
+    CREATE INDEX IX_Vaikunth_Events_Tenant ON dbo.Vaikunth_Events(TenantId, StartUtc, EndUtc);
+GO
+/* Who is invited, and what they answered: 0 not yet, 1 yes, 2 no, 3 maybe. */
+IF OBJECT_ID(N'dbo.Vaikunth_EventPeople', N'U') IS NULL
+CREATE TABLE dbo.Vaikunth_EventPeople
+(
+    EventId     UNIQUEIDENTIFIER NOT NULL CONSTRAINT FK_Vaikunth_EventPeople_Events REFERENCES dbo.Vaikunth_Events(EventId) ON DELETE CASCADE,
+    UserId      UNIQUEIDENTIFIER NOT NULL,
+    Response    TINYINT          NOT NULL CONSTRAINT DF_Vaikunth_EventPeople_Response DEFAULT (0),
+    CONSTRAINT PK_Vaikunth_EventPeople PRIMARY KEY (EventId, UserId)
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Vaikunth_EventPeople_User')
+    CREATE INDEX IX_Vaikunth_EventPeople_User ON dbo.Vaikunth_EventPeople(UserId);
+GO
+
+/* Sudarshana Inbox: one row per message, and one row per person who has it (in which folder, read, starred).
+   Folder: 1 Inbox, 2 Sent, 3 Drafts, 4 Trash. SentUtc NULL = a draft. */
+IF OBJECT_ID(N'dbo.Vaikunth_Mail', N'U') IS NULL
+CREATE TABLE dbo.Vaikunth_Mail
+(
+    MessageId   UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Vaikunth_Mail PRIMARY KEY,
+    TenantId    UNIQUEIDENTIFIER NOT NULL CONSTRAINT FK_Vaikunth_Mail_Tenants REFERENCES dbo.Vaikunth_Tenants(TenantId) ON DELETE CASCADE,
+    FromUserId  UNIQUEIDENTIFIER NOT NULL,
+    ToText      NVARCHAR(2000)   NOT NULL CONSTRAINT DF_Vaikunth_Mail_To DEFAULT (N''),
+    CcText      NVARCHAR(2000)   NOT NULL CONSTRAINT DF_Vaikunth_Mail_Cc DEFAULT (N''),
+    Subject     NVARCHAR(300)    NOT NULL CONSTRAINT DF_Vaikunth_Mail_Subject DEFAULT (N''),
+    BodyHtml    NVARCHAR(MAX)    NOT NULL CONSTRAINT DF_Vaikunth_Mail_Body DEFAULT (N''),
+    Preview     NVARCHAR(300)    NOT NULL CONSTRAINT DF_Vaikunth_Mail_Preview DEFAULT (N''),
+    SentUtc     DATETIME2(3)     NULL,
+    UpdatedUtc  DATETIME2(3)     NOT NULL CONSTRAINT DF_Vaikunth_Mail_Updated DEFAULT (SYSUTCDATETIME())
+);
+GO
+IF OBJECT_ID(N'dbo.Vaikunth_MailBox', N'U') IS NULL
+CREATE TABLE dbo.Vaikunth_MailBox
+(
+    MessageId   UNIQUEIDENTIFIER NOT NULL CONSTRAINT FK_Vaikunth_MailBox_Mail REFERENCES dbo.Vaikunth_Mail(MessageId) ON DELETE CASCADE,
+    UserId      UNIQUEIDENTIFIER NOT NULL,
+    Folder      TINYINT          NOT NULL CONSTRAINT CK_Vaikunth_MailBox_Folder CHECK (Folder IN (1, 2, 3, 4)),
+    IsRead      BIT              NOT NULL CONSTRAINT DF_Vaikunth_MailBox_Read DEFAULT (0),
+    IsStarred   BIT              NOT NULL CONSTRAINT DF_Vaikunth_MailBox_Star DEFAULT (0),
+    CONSTRAINT PK_Vaikunth_MailBox PRIMARY KEY (MessageId, UserId)
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Vaikunth_MailBox_User')
+    CREATE INDEX IX_Vaikunth_MailBox_User ON dbo.Vaikunth_MailBox(UserId, Folder) INCLUDE (IsRead, IsStarred);
+GO
+
 /* ===================== 4. remove old vk_ procedures ================== */
 DECLARE @drop NVARCHAR(MAX) = N'';
 SELECT @drop += N'DROP PROCEDURE dbo.' + QUOTENAME(name) + N';' + CHAR(10)
@@ -344,7 +439,7 @@ BEGIN
     SELECT u.UserId, u.TenantId, t.Name AS TenantName, u.DisplayName, u.Email, u.Role, u.AvatarTone, u.CreatedUtc,
            ISNULL(u.PasswordHash, N'') AS PasswordHash, u.IsActive,
            CAST(CASE WHEN ISNULL(t.IsActive, 1) = 1 AND ISNULL(t.BillingBlocked, 0) = 0 THEN 1 ELSE 0 END AS BIT) AS TenantActive,
-           CAST(ISNULL(t.AppsEnabled, 31) AS TINYINT) AS AppsEnabled,
+           CAST(ISNULL(t.AppsEnabled, 127) AS TINYINT) AS AppsEnabled,
            CAST(ISNULL(t.BillingBlocked, 0) AS BIT) AS TenantBillingBlocked
     FROM dbo.Vaikunth_Users u
     LEFT JOIN dbo.Vaikunth_Tenants t ON t.TenantId = u.TenantId
@@ -357,7 +452,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT u.UserId, u.TenantId, t.Name AS TenantName, u.DisplayName, u.Email, u.Role, u.AvatarTone, u.CreatedUtc,
-           CAST(ISNULL(t.AppsEnabled, 31) AS TINYINT) AS AppsEnabled
+           CAST(ISNULL(t.AppsEnabled, 127) AS TINYINT) AS AppsEnabled
     FROM dbo.Vaikunth_Users u LEFT JOIN dbo.Vaikunth_Tenants t ON t.TenantId = u.TenantId
     WHERE u.UserId = @UserId;
 END
@@ -607,7 +702,7 @@ BEGIN
            (SELECT COUNT(*) FROM dbo.Vaikunth_Users u WHERE u.TenantId = t.TenantId AND u.IsActive = 1) AS ActiveUsers,
            CAST(ISNULL(t.StorageQuotaMbOverride, p.StorageQuotaMb) AS BIGINT) * 1048576 AS StorageQuotaBytes,
            t.StorageUsedBytes, t.AppsEnabled, t.StorageQuotaMbOverride,
-           p.PricePerUser, t.BillingFrom, t.BillingHoldUntil, t.BillingBlocked,
+           p.PricePerUser, t.BillingFrom, t.BillingHoldUntil, t.BillingBlocked, t.DueDay, t.GraceDays, t.AutoBlock,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 1) AS Documents,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 2) AS Workbooks,
            (SELECT COUNT(*) FROM dbo.Vaikunth_Documents d WHERE d.TenantId = t.TenantId AND d.IsDeleted = 0 AND d.AppKind = 3) AS Decks,
@@ -663,6 +758,30 @@ BEGIN
         VALUES (@AdminUserId, @TenantId, @AdminName, @AdminEmail, @AdminPasswordHash, N'TenantAdmin', @AdminTone);
     COMMIT;
     SELECT 1 AS Result;
+END
+GO
+
+/* Corrects the client admin's name and email (super admin, Edit client).
+   Result 1 = saved, 2 = saved and the email changed, 0 = someone else uses that email, -1 = the client has no admin.
+   When the email changes, links sent to the old address stop working (they are removed). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_UpdateAdmin
+    @TenantId UNIQUEIDENTIFIER, @Name NVARCHAR(120), @Email NVARCHAR(200)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    SET @Email = LOWER(LTRIM(RTRIM(@Email)));
+    DECLARE @UserId UNIQUEIDENTIFIER, @Old NVARCHAR(200);
+    SELECT TOP 1 @UserId = UserId, @Old = Email FROM dbo.Vaikunth_Users
+    WHERE TenantId = @TenantId AND Role = N'TenantAdmin' ORDER BY CreatedUtc;
+    IF @UserId IS NULL BEGIN SELECT -1 AS Result; RETURN; END
+    IF EXISTS (SELECT 1 FROM dbo.Vaikunth_Users WHERE Email = @Email AND UserId <> @UserId) BEGIN SELECT 0 AS Result; RETURN; END
+    BEGIN TRAN;
+        UPDATE dbo.Vaikunth_Users SET DisplayName = @Name, Email = @Email WHERE UserId = @UserId;
+        IF @Old <> @Email   -- links sent to the wrong address are removed, so a new one can go out at once
+            DELETE dbo.Vaikunth_PasswordLinks WHERE UserId = @UserId AND (UsedUtc IS NULL OR CreatedUtc > DATEADD(MINUTE, -2, SYSUTCDATETIME()));
+    COMMIT;
+    SELECT CASE WHEN @Old <> @Email THEN 2 ELSE 1 END AS Result;
 END
 GO
 
@@ -801,6 +920,20 @@ BEGIN
     UPDATE dbo.Vaikunth_Tenants SET BillingHoldUntil = @HoldUntil,
         BillingBlocked = CASE WHEN @HoldUntil IS NOT NULL THEN 0 ELSE BillingBlocked END
     WHERE TenantId = @TenantId;
+END
+GO
+
+/* One client's own payment rules: due day, days before the block, auto-block and the first month it pays for.
+   NULL rule = use the default rules. @BillingFrom NULL = leave it as it is. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Tenant_SetBillingRules
+    @TenantId UNIQUEIDENTIFIER, @DueDay TINYINT = NULL, @GraceDays SMALLINT = NULL, @AutoBlock BIT = NULL, @BillingFrom DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Vaikunth_Tenants
+    SET DueDay = @DueDay, GraceDays = @GraceDays, AutoBlock = @AutoBlock, BillingFrom = ISNULL(@BillingFrom, BillingFrom)
+    WHERE TenantId = @TenantId;
+    SELECT @@ROWCOUNT AS Result;
 END
 GO
 
@@ -949,5 +1082,203 @@ IF OBJECT_ID(N'dbo.Vaikunth_DocumentsToMove', N'U') IS NOT NULL
     EXEC sys.sp_executesql N'IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_DocumentsToMove) DROP TABLE dbo.Vaikunth_DocumentsToMove;';
 GO
 
-PRINT N'Vaikunth Office database is up to date.';
+
+/* ===================== Vaijayanti Days ===================== */
+/* Events a person owns or is invited to that overlap [@From, @To); or one event (@EventId). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Event_List
+    @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @From DATETIME2(0) = NULL, @To DATETIME2(0) = NULL, @EventId UNIQUEIDENTIFIER = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT e.EventId, e.OwnerId, ISNULL(o.DisplayName, N'') AS OwnerName, e.Title, e.StartUtc, e.EndUtc, e.AllDay, e.Location, e.Notes, e.Color
+    FROM dbo.Vaikunth_Events e
+    LEFT JOIN dbo.Vaikunth_Users o ON o.UserId = e.OwnerId
+    WHERE e.TenantId = @TenantId
+      AND (e.OwnerId = @UserId OR EXISTS (SELECT 1 FROM dbo.Vaikunth_EventPeople p WHERE p.EventId = e.EventId AND p.UserId = @UserId))
+      AND (@EventId IS NULL OR e.EventId = @EventId)
+      AND (@From IS NULL OR e.EndUtc > @From) AND (@To IS NULL OR e.StartUtc < @To)
+    ORDER BY e.StartUtc;
+END
+GO
+/* The invited people of the same events as Vaikunth_Event_List. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Event_People
+    @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @From DATETIME2(0) = NULL, @To DATETIME2(0) = NULL, @EventId UNIQUEIDENTIFIER = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT p.EventId, p.UserId, u.DisplayName AS Name, u.Email, p.Response
+    FROM dbo.Vaikunth_EventPeople p
+    JOIN dbo.Vaikunth_Events e ON e.EventId = p.EventId
+    JOIN dbo.Vaikunth_Users u ON u.UserId = p.UserId
+    WHERE e.TenantId = @TenantId
+      AND (e.OwnerId = @UserId OR EXISTS (SELECT 1 FROM dbo.Vaikunth_EventPeople me WHERE me.EventId = e.EventId AND me.UserId = @UserId))
+      AND (@EventId IS NULL OR e.EventId = @EventId)
+      AND (@From IS NULL OR e.EndUtc > @From) AND (@To IS NULL OR e.StartUtc < @To)
+    ORDER BY u.DisplayName;
+END
+GO
+/* Add or change an event; only its owner can change it. @People: the invited people's ids, comma separated
+   (only people of the same company count). Result 1 = saved, 0 = not yours or not found. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Event_Save
+    @EventId UNIQUEIDENTIFIER, @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @Title NVARCHAR(200),
+    @StartUtc DATETIME2(0), @EndUtc DATETIME2(0), @AllDay BIT, @Location NVARCHAR(200), @Notes NVARCHAR(4000),
+    @Color VARCHAR(20), @People NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Owner UNIQUEIDENTIFIER = (SELECT OwnerId FROM dbo.Vaikunth_Events WHERE EventId = @EventId AND TenantId = @TenantId);
+    IF EXISTS (SELECT 1 FROM dbo.Vaikunth_Events WHERE EventId = @EventId) AND (@Owner IS NULL OR @Owner <> @UserId)
+    BEGIN SELECT 0 AS Result; RETURN; END
+    DECLARE @Invited TABLE (UserId UNIQUEIDENTIFIER PRIMARY KEY);
+    INSERT @Invited (UserId)
+    SELECT DISTINCT u.UserId FROM STRING_SPLIT(ISNULL(@People, N''), N',') x
+    JOIN dbo.Vaikunth_Users u ON u.UserId = TRY_CONVERT(UNIQUEIDENTIFIER, LTRIM(RTRIM(x.value)))
+    WHERE u.TenantId = @TenantId AND u.UserId <> @UserId;
+    BEGIN TRAN;
+    IF @Owner IS NULL
+        INSERT dbo.Vaikunth_Events (EventId, TenantId, OwnerId, Title, StartUtc, EndUtc, AllDay, Location, Notes, Color)
+        VALUES (@EventId, @TenantId, @UserId, @Title, @StartUtc, @EndUtc, @AllDay, @Location, @Notes, @Color);
+    ELSE
+        UPDATE dbo.Vaikunth_Events SET Title = @Title, StartUtc = @StartUtc, EndUtc = @EndUtc, AllDay = @AllDay, Location = @Location,
+            Notes = @Notes, Color = @Color, UpdatedUtc = SYSUTCDATETIME() WHERE EventId = @EventId;
+    DELETE p FROM dbo.Vaikunth_EventPeople p WHERE p.EventId = @EventId AND NOT EXISTS (SELECT 1 FROM @Invited i WHERE i.UserId = p.UserId);
+    INSERT dbo.Vaikunth_EventPeople (EventId, UserId)
+    SELECT @EventId, i.UserId FROM @Invited i WHERE NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_EventPeople p WHERE p.EventId = @EventId AND p.UserId = i.UserId);
+    COMMIT;
+    SELECT 1 AS Result;
+END
+GO
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Event_Delete @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @EventId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE dbo.Vaikunth_Events WHERE EventId = @EventId AND TenantId = @TenantId AND OwnerId = @UserId;
+    SELECT @@ROWCOUNT AS Result;
+END
+GO
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Event_Respond @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @EventId UNIQUEIDENTIFIER, @Response TINYINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE p SET Response = @Response FROM dbo.Vaikunth_EventPeople p
+    JOIN dbo.Vaikunth_Events e ON e.EventId = p.EventId
+    WHERE p.EventId = @EventId AND p.UserId = @UserId AND e.TenantId = @TenantId;
+    SELECT @@ROWCOUNT AS Result;
+END
+GO
+
+/* ===================== Sudarshana Inbox ===================== */
+/* A folder (@Folder) or every starred message (@Starred = 1), newest first. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Mail_List
+    @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @Folder TINYINT = NULL, @Starred BIT = 0, @Take INT = 200
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (@Take) m.MessageId, b.Folder, m.FromUserId, ISNULL(f.DisplayName, N'') AS FromName, ISNULL(f.Email, N'') AS FromEmail,
+           m.ToText, m.Subject, m.Preview, ISNULL(m.SentUtc, m.UpdatedUtc) AS WhenUtc, b.IsRead, b.IsStarred,
+           CAST(CASE WHEN m.SentUtc IS NULL THEN 1 ELSE 0 END AS BIT) AS IsDraft
+    FROM dbo.Vaikunth_MailBox b
+    JOIN dbo.Vaikunth_Mail m ON m.MessageId = b.MessageId
+    LEFT JOIN dbo.Vaikunth_Users f ON f.UserId = m.FromUserId
+    WHERE b.UserId = @UserId AND m.TenantId = @TenantId
+      AND ((@Starred = 1 AND b.IsStarred = 1 AND b.Folder <> 4) OR (@Starred = 0 AND b.Folder = @Folder))
+    ORDER BY ISNULL(m.SentUtc, m.UpdatedUtc) DESC;
+END
+GO
+/* Open a message (it becomes read). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Mail_Get @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @MessageId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Vaikunth_MailBox SET IsRead = 1 WHERE MessageId = @MessageId AND UserId = @UserId;
+    SELECT m.MessageId, b.Folder, m.FromUserId, ISNULL(f.DisplayName, N'') AS FromName, ISNULL(f.Email, N'') AS FromEmail,
+           m.ToText, m.CcText, m.Subject, m.BodyHtml, ISNULL(m.SentUtc, m.UpdatedUtc) AS WhenUtc, b.IsRead, b.IsStarred,
+           CAST(CASE WHEN m.SentUtc IS NULL THEN 1 ELSE 0 END AS BIT) AS IsDraft
+    FROM dbo.Vaikunth_MailBox b
+    JOIN dbo.Vaikunth_Mail m ON m.MessageId = b.MessageId
+    LEFT JOIN dbo.Vaikunth_Users f ON f.UserId = m.FromUserId
+    WHERE b.UserId = @UserId AND b.MessageId = @MessageId AND m.TenantId = @TenantId;
+END
+GO
+/* Keep a draft (@IsDraft = 1) or send. Sending puts it in the sender's Sent and in each recipient's Inbox
+   (@Recipients: ids, comma separated; only active people of the same company). Result 1 = done, 0 = not yours. */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Mail_Save
+    @MessageId UNIQUEIDENTIFIER, @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @ToText NVARCHAR(2000), @CcText NVARCHAR(2000),
+    @Subject NVARCHAR(300), @BodyHtml NVARCHAR(MAX), @Preview NVARCHAR(300), @IsDraft BIT, @Recipients NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Exists BIT = CASE WHEN EXISTS (SELECT 1 FROM dbo.Vaikunth_Mail WHERE MessageId = @MessageId) THEN 1 ELSE 0 END;
+    IF @Exists = 1 AND NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_Mail WHERE MessageId = @MessageId AND TenantId = @TenantId AND FromUserId = @UserId AND SentUtc IS NULL)
+    BEGIN SELECT 0 AS Result; RETURN; END
+    BEGIN TRAN;
+    IF @Exists = 0
+        INSERT dbo.Vaikunth_Mail (MessageId, TenantId, FromUserId, ToText, CcText, Subject, BodyHtml, Preview, SentUtc)
+        VALUES (@MessageId, @TenantId, @UserId, @ToText, @CcText, @Subject, @BodyHtml, @Preview, CASE WHEN @IsDraft = 1 THEN NULL ELSE SYSUTCDATETIME() END);
+    ELSE
+        UPDATE dbo.Vaikunth_Mail SET ToText = @ToText, CcText = @CcText, Subject = @Subject, BodyHtml = @BodyHtml, Preview = @Preview,
+            SentUtc = CASE WHEN @IsDraft = 1 THEN NULL ELSE SYSUTCDATETIME() END, UpdatedUtc = SYSUTCDATETIME()
+        WHERE MessageId = @MessageId;
+    MERGE dbo.Vaikunth_MailBox AS t
+    USING (SELECT @MessageId AS MessageId, @UserId AS UserId) AS s ON t.MessageId = s.MessageId AND t.UserId = s.UserId
+    WHEN MATCHED THEN UPDATE SET Folder = CASE WHEN @IsDraft = 1 THEN 3 ELSE 2 END, IsRead = 1
+    WHEN NOT MATCHED THEN INSERT (MessageId, UserId, Folder, IsRead) VALUES (@MessageId, @UserId, CASE WHEN @IsDraft = 1 THEN 3 ELSE 2 END, 1);
+    IF @IsDraft = 0
+        INSERT dbo.Vaikunth_MailBox (MessageId, UserId, Folder, IsRead)
+        SELECT DISTINCT @MessageId, u.UserId, 1, 0
+        FROM STRING_SPLIT(ISNULL(@Recipients, N''), N',') x
+        JOIN dbo.Vaikunth_Users u ON u.UserId = TRY_CONVERT(UNIQUEIDENTIFIER, LTRIM(RTRIM(x.value)))
+        WHERE u.TenantId = @TenantId AND u.IsActive = 1 AND u.UserId <> @UserId
+          AND NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_MailBox b WHERE b.MessageId = @MessageId AND b.UserId = u.UserId);
+    COMMIT;
+    SELECT 1 AS Result;
+END
+GO
+/* Move to a folder, or set read / starred (NULL = leave as it is). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Mail_Update
+    @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @MessageId UNIQUEIDENTIFIER, @Folder TINYINT = NULL, @IsRead BIT = NULL, @IsStarred BIT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE b SET Folder = ISNULL(@Folder, b.Folder), IsRead = ISNULL(@IsRead, b.IsRead), IsStarred = ISNULL(@IsStarred, b.IsStarred)
+    FROM dbo.Vaikunth_MailBox b JOIN dbo.Vaikunth_Mail m ON m.MessageId = b.MessageId
+    WHERE b.MessageId = @MessageId AND b.UserId = @UserId AND m.TenantId = @TenantId;
+    SELECT @@ROWCOUNT AS Result;
+END
+GO
+/* Delete for this person: from any folder it goes to Trash; from Trash it is gone (and the message too, once nobody has it). */
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Mail_Delete @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @MessageId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Folder TINYINT = (SELECT b.Folder FROM dbo.Vaikunth_MailBox b JOIN dbo.Vaikunth_Mail m ON m.MessageId = b.MessageId
+                               WHERE b.MessageId = @MessageId AND b.UserId = @UserId AND m.TenantId = @TenantId);
+    IF @Folder IS NULL BEGIN SELECT 0 AS Result; RETURN; END
+    IF @Folder = 4 OR @Folder = 3
+    BEGIN
+        DELETE dbo.Vaikunth_MailBox WHERE MessageId = @MessageId AND UserId = @UserId;
+        IF NOT EXISTS (SELECT 1 FROM dbo.Vaikunth_MailBox WHERE MessageId = @MessageId) DELETE dbo.Vaikunth_Mail WHERE MessageId = @MessageId;
+        SELECT 2 AS Result;   -- gone for good
+    END
+    ELSE
+    BEGIN
+        UPDATE dbo.Vaikunth_MailBox SET Folder = 4 WHERE MessageId = @MessageId AND UserId = @UserId;
+        SELECT 1 AS Result;   -- in Trash
+    END
+END
+GO
+CREATE OR ALTER PROCEDURE dbo.Vaikunth_Mail_Counts @TenantId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ISNULL(SUM(CASE WHEN b.Folder = 1 AND b.IsRead = 0 THEN 1 ELSE 0 END), 0) AS UnreadInbox,
+           ISNULL(SUM(CASE WHEN b.Folder = 3 THEN 1 ELSE 0 END), 0) AS Drafts,
+           ISNULL(SUM(CASE WHEN b.IsStarred = 1 AND b.Folder <> 4 THEN 1 ELSE 0 END), 0) AS Starred,
+           ISNULL(SUM(CASE WHEN b.Folder = 4 THEN 1 ELSE 0 END), 0) AS Trash
+    FROM dbo.Vaikunth_MailBox b JOIN dbo.Vaikunth_Mail m ON m.MessageId = b.MessageId
+    WHERE b.UserId = @UserId AND m.TenantId = @TenantId;
+END
+GO
+
+PRINT N'Vaikunth Desk database is up to date.';
 GO

@@ -3,7 +3,7 @@
     Layout = "_EditorLayout";   // full-window editor frame from Vaikunth.UI
     ViewData["Title"] = Model.Title;
 }
-@section Styles { <link rel="stylesheet" href="~/_content/Vaikunth.VishwaroopaSlides/css/slides.css" asp-append-version="true" /> }
+@section Styles { <vk-bundle name="slides.css" /> }
 
 <vk-app-bar app="slides" doc-title="@Model.Title" user-name="@User.DisplayName()" avatar-tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" />
 
@@ -89,5 +89,5 @@
 @section Scripts {
     <script id="docData" type="application/json">@Html.Raw(Model.Content.Replace("</", "<\\/"))</script>
     <script>VK.docId = "@Model.DocumentId";</script>
-    <script src="~/_content/Vaikunth.VishwaroopaSlides/js/slides.js" asp-append-version="true"></script>
+    <vk-bundle name="slides.js" />
 }

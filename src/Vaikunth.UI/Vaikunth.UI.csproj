@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <!-- Shared by all three apps: the tag helpers (reusable controls), the suite look (css, icons),
-       the sign-in page, the Vaikunth Office launcher and the layouts. Static files are served
+       the sign-in page, the Vaikunth Desk launcher and the layouts. Static files are served
        to each app at /_content/Vaikunth.UI/... -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="NUglify" Version="1.24.0" />
   </ItemGroup>
 
   <ItemGroup>

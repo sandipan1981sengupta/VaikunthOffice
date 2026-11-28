@@ -1,4 +1,4 @@
-/* Vaikunth Office · colours for the ShankhNaad (Template 1) controls: modern-input, modern-dropdown-with-label,
+/* Vaikunth Desk · colours for the ShankhNaad (Template 1) controls: modern-input, modern-dropdown-with-label,
    modern-datepicker-with-label, modern-month-year-picker, modern-table, modern-radio-group, modern-checkbox, charts.
    Loaded after css/Theme/controls-theme.css and css/web-control/*.css. Light and Dark (html[data-theme]). */
 
@@ -118,3 +118,58 @@ html[data-theme=dark] .vk-ws-body .mc-label-text, html[data-theme=dark] .vk-ws-b
 .vk-ws-body .mr-cbx input[type="radio"]:checked ~ .mr-indicator .mr-dot { background: #fff; }
 .vk-ws-body .mr-option-text { font-size: 14px; }
 html[data-theme=dark] .vk-ws-body .mr-cbx input[type="radio"]:checked ~ .mr-indicator { background: linear-gradient(110deg, #6E76FF 0%, #14A3A0 100%) !important; border-color: transparent !important; }
+
+/* Vaikunth: one shape for every box: inputs, dropdowns, date and month pickers are all pills. */
+.modern-dropdown-with-label { --ddwl-radius: 999px; }
+.ddwl-toggle, .myp-input, .mdpwl-input, .modern-dropdown-with-label .ddwl-toggle { border-radius: 999px !important; }
+.ddwl-toggle { padding-left: 18px; padding-right: 16px; }
+
+/* calendars opened inside a pop-up window: solid, so the fields behind never show through */
+dialog .flatpickr-calendar, dialog .flatpickr-calendar .flatpickr-months, dialog .flatpickr-calendar .flatpickr-innerContainer,
+dialog .flatpickr-calendar .flatpickr-monthSelect-months { background: #fff !important; }
+dialog .flatpickr-calendar { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; opacity: 1 !important;
+    box-shadow: 0 24px 50px -18px rgba(20, 22, 52, .45), 0 0 0 1px rgba(30, 32, 96, .08) !important; border-radius: 16px; }
+html[data-theme=dark] dialog .flatpickr-calendar, html[data-theme=dark] dialog .flatpickr-calendar .flatpickr-months,
+html[data-theme=dark] dialog .flatpickr-calendar .flatpickr-innerContainer, html[data-theme=dark] dialog .flatpickr-calendar .flatpickr-monthSelect-months { background: #1C1F42 !important; }
+
+/* a calendar opened in a small window may come out of it while it is open (no scroll bar, nothing cut off) */
+dialog.vk-cal-open, dialog.vk-cal-open .vk-dialog-inner, dialog.vk-cal-open .vk-dialog-body, dialog.vk-cal-open form { overflow: visible !important; }
+
+/* payment rules: fields that follow the default rules are shown but can't be changed */
+.vk-rule-off { opacity: .55; pointer-events: none; filter: saturate(.6); }
+
+/* the loading line along the top while the server works (saves and Refresh without reloading the page) */
+.vk-loadbar { position: fixed; left: 0; top: 0; height: 3px; width: 0; z-index: 2147483000; pointer-events: none; opacity: 0;
+    background: linear-gradient(90deg, #2B2F86, #4F55C8 45%, #14A3A0); box-shadow: 0 0 10px rgba(20, 163, 160, .6); transition: width .25s ease, opacity .3s ease; }
+.vk-loadbar.on { opacity: 1; width: 85%; transition: width 6s cubic-bezier(.1, .7, .2, 1), opacity .1s; }
+html.vk-busy, html.vk-busy * { cursor: progress; }
+
+/* ShankhNaad message box: the bits Vaikunth puts in it (delete confirmations) */
+.mb-body .vk-mb-lead { margin: 0 0 8px; font-size: 14.5px; line-height: 1.5; }
+.mb-body .vk-mb-sub { margin: 4px 0 0; font-size: 13px; color: #5b6075; line-height: 1.5; }
+.mb-body .vk-mb-list { display: table; margin: 0 auto 14px; padding-left: 20px; text-align: left; font-size: 13.5px; line-height: 1.7; }
+.mb-body .vk-mb-label { display: block; margin: 4px 0 6px; font-size: 13px; font-weight: 600; }
+.mb-body .vk-mb-input { width: 100%; box-sizing: border-box; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #d5d8e6;
+    font: inherit; font-size: 14px; outline: none; background: #fff; color: #1a1a1a; }
+.mb-body .vk-mb-input:focus { border-color: #c0483f; box-shadow: 0 0 0 3px rgba(192, 72, 63, .15); }
+#confirmMessageBox .mb-dialog { max-width: 520px; font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; }
+
+/* ---- Message boxes in Vaikunth colours: every type gets a coloured, readable header; buttons match the suite ---- */
+.mb-dialog { border-radius: 18px !important; }
+.mb-header { margin: 6px; border-radius: 12px; }
+.mb-type-info .mb-header { background: linear-gradient(135deg, #2B2F86 0%, #3A49B5 55%, #14A3A0 100%); }
+.mb-type-success .mb-header { background: linear-gradient(135deg, #115C45 0%, #22A37A 100%); }
+.mb-type-warning .mb-header { background: linear-gradient(135deg, #B3781F 0%, #D9A441 100%); }
+.mb-type-error .mb-header { background: linear-gradient(135deg, #8F2F28 0%, #C0483F 100%); }
+.mb-title { font-weight: 600; letter-spacing: .1px; }
+.mb-body { background: #ffffff; color: #1B1F3B; padding: 32px 32px 28px; min-height: 0; }
+.mb-footer { background: #F4F5FB; border-top: 1px solid #E4E6F2; }
+.mb-ok-btn { background: linear-gradient(90deg, #2B2F86 0%, #14A3A0 100%); box-shadow: 0 6px 16px rgba(43, 47, 134, .25); }
+.mb-ok-btn:hover { background: linear-gradient(90deg, #23276F 0%, #0F8F8C 100%); }
+.mb-ok-btn.mb-danger-btn { background: linear-gradient(90deg, #B42318 0%, #D9473B 100%); box-shadow: 0 6px 16px rgba(180, 35, 24, .25); }
+.mb-ok-btn.mb-danger-btn:hover { background: linear-gradient(90deg, #951C13 0%, #C23A2F 100%); }
+.mb-cancel-btn { background: #fff; border-color: #D5D8E6; color: #1B1F3B; }
+html[data-theme=dark] .mb-body { background: #171A36; color: #E7E9FB; }
+html[data-theme=dark] .mb-body .vk-mb-sub { color: #A9AECF; }
+html[data-theme=dark] .mb-footer { background: #121430; border-top-color: #2A2E55; }
+html[data-theme=dark] .mb-cancel-btn { background: #1F2347; border-color: #353A6B; color: #E7E9FB; }

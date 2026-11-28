@@ -19,9 +19,11 @@ function mdpwlFloat(selectedDates, dateStr, instance) {
         cal.style.position = "fixed"; cal.style.zIndex = "100"; cal.style.right = "auto"; cal.style.bottom = "auto";
         var cb = cbOf(cal), r = input.getBoundingClientRect(), box = cb ? cb.getBoundingClientRect() : { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
         var ox = cb ? box.left + cb.clientLeft : 0, oy = cb ? box.top + cb.clientTop : 0;
-        var dlg = input.closest("dialog").getBoundingClientRect();
+        // Vaikunth: the calendar may come out of a small window (the window lets it show while it is open),
+        // so it only has to stay inside the browser window
+        input.closest("dialog").classList.add("vk-cal-open");
         var w = cal.offsetWidth, h = cal.offsetHeight, gap = 6;
-        var lim = { left: Math.max(dlg.left, 0) + 8, right: Math.min(dlg.right, innerWidth) - 8, top: Math.max(dlg.top, 0) + 8, bottom: Math.min(dlg.bottom, innerHeight) - 8 };
+        var lim = { left: 8, right: innerWidth - 8, top: 8, bottom: innerHeight - 8 };
         var top = r.bottom + gap;
         if (top + h > lim.bottom && r.top - gap - h >= lim.top) top = r.top - gap - h;       // no room below: open upwards
         else if (top + h > lim.bottom) top = Math.max(lim.top, lim.bottom - h);              // no room either way: keep it inside
@@ -35,7 +37,10 @@ function mdpwlFloat(selectedDates, dateStr, instance) {
         instance._snFloat = place;
         document.addEventListener("scroll", function () { if (instance.isOpen) place(); }, true);
         window.addEventListener("resize", function () { if (instance.isOpen) place(); });
-        instance.config.onClose.push(function () { cal.style.position = ""; cal.style.left = ""; cal.style.top = ""; cal.style.zIndex = ""; });
+        instance.config.onClose.push(function () {
+            cal.style.position = ""; cal.style.left = ""; cal.style.top = ""; cal.style.zIndex = "";
+            var d = input.closest("dialog"); if (d) d.classList.remove("vk-cal-open");
+        });
     }
 }
 

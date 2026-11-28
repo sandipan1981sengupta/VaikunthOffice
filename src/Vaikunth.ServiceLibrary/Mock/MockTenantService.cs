@@ -19,7 +19,8 @@ public sealed class MockTenantService : ITenantService
             t.ExtraFiles[0] + files.Pages, t.ExtraFiles[1] + files.Workbooks, t.ExtraFiles[2] + files.Decks, t.AdminEmail,
             admin?.UserId, admin is not null && admin.Password is null, admin?.DisplayName, t.StorageQuotaMbOverride,
             t.ExtraFiles.ElementAtOrDefault(3) + files.Pdfs, t.ExtraFiles.ElementAtOrDefault(4) + files.Projects,
-            MockData.Plans.First(p => p.PlanId == t.PlanId).PricePerUser, t.BillingFrom, t.BillingHoldUntil, t.BillingBlocked);
+            MockData.Plans.First(p => p.PlanId == t.PlanId).PricePerUser, t.BillingFrom, t.BillingHoldUntil, t.BillingBlocked,
+            t.DueDay, t.GraceDays, t.AutoBlock);
     }
 
     public async Task<SuiteStatsDto> StatsAsync()
@@ -50,6 +51,19 @@ public sealed class MockTenantService : ITenantService
         if (string.IsNullOrWhiteSpace(r.Name)) return Task.FromResult(OperationResult.Fail("Enter the company name."));
         if (r.Apps == SuiteAppFlags.None) return Task.FromResult(OperationResult.Fail("Pick at least one app."));
         if (r.MaxUsersOverride is int n && (n < 1 || n > 100000)) return Task.FromResult(OperationResult.Fail("Licenses must be between 1 and 100,000."));
+        if (TenantRules.ValidateAdmin(r) is string adminProblem) return Task.FromResult(OperationResult.Fail(adminProblem));
+        if (r.AdminEmail is not null && t.AdminEmail is not null && MockData.People.TryGetValue(t.AdminEmail, out var admin))
+        {
+            var email = r.AdminEmail.Trim().ToLowerInvariant();
+            if (email != t.AdminEmail && MockData.People.ContainsKey(email)) return Task.FromResult(OperationResult.Fail($"{email} is already used by someone else."));
+            admin.DisplayName = r.AdminName!.Trim();
+            if (email != t.AdminEmail)
+            {
+                MockData.People.TryRemove(t.AdminEmail, out _);
+                admin.Email = email; MockData.People[email] = admin; t.AdminEmail = email;
+                foreach (var k in MockData.Links.Where(l => l.Value.UserId == admin.UserId).Select(l => l.Key).ToList()) MockData.Links.TryRemove(k, out _);
+            }
+        }
         t.Name = r.Name.Trim(); t.PlanId = r.PlanId; t.Apps = r.Apps; t.IsActive = r.IsActive;
         t.MaxUsersOverride = r.MaxUsersOverride; t.StorageQuotaMbOverride = r.StorageQuotaMbOverride;
         if (r.BillingFrom is DateOnly b) t.BillingFrom = Money.FirstOfMonth(b);

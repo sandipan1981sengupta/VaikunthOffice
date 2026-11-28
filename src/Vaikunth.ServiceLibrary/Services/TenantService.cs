@@ -35,6 +35,16 @@ public static class TenantRules
         return null;
     }
 
+    /// <summary>Checks the admin's name and email on Edit client (both or neither).</summary>
+    public static string? ValidateAdmin(UpdateTenantRequest r)
+    {
+        if (r.AdminEmail is null && r.AdminName is null) return null;
+        if (string.IsNullOrWhiteSpace(r.AdminName)) return "Enter the admin's name.";
+        var e = r.AdminEmail?.Trim() ?? "";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(e, @"^[^@\s]+@[^@\s]+\.[^@\s]+$")) return "Check the admin's email address.";
+        return null;
+    }
+
     public static string? Validate(CreateTenantRequest r)
     {
         if (string.IsNullOrWhiteSpace(r.Name)) return "Enter the company name.";
@@ -67,7 +77,11 @@ public sealed class TenantService : ITenantService
             r.I("MaxUsers"), r.I("ActiveUsers"), r.L("StorageQuotaBytes"), r.L("StorageUsedBytes"), (SuiteAppFlags)Convert.ToByte(r["AppsEnabled"]),
             r.I("Documents"), r.I("Workbooks"), r.I("Decks"), r.SN("AdminEmail"), r.GN("AdminUserId"), r.B("AdminPending"), r.SN("AdminName"),
             r["StorageQuotaMbOverride"] is DBNull ? null : Convert.ToInt64(r["StorageQuotaMbOverride"]), r.I("Pdfs"), r.I("Projects"),
-            r.M("PricePerUser"), r.DN("BillingFrom"), r.DN("BillingHoldUntil"), r.B("BillingBlocked")));
+            r.M("PricePerUser"), r.DN("BillingFrom"), r.DN("BillingHoldUntil"), r.B("BillingBlocked"),
+            // the rule columns arrive with Vaikunth_Update.sql; before it runs, every client follows the defaults
+            r.Has("DueDay") && r["DueDay"] is not DBNull ? Convert.ToInt32(r["DueDay"]) : null,
+            r.Has("GraceDays") && r["GraceDays"] is not DBNull ? Convert.ToInt32(r["GraceDays"]) : null,
+            r.Has("AutoBlock") && r["AutoBlock"] is not DBNull ? Convert.ToBoolean(r["AutoBlock"]) : null));
 
     public async Task<SuiteStatsDto> StatsAsync() =>
         (await _db.QueryAsync("dbo.Vaikunth_Suite_Stats", null, r => new SuiteStatsDto(
@@ -98,6 +112,14 @@ public sealed class TenantService : ITenantService
         if (string.IsNullOrWhiteSpace(request.Name)) return OperationResult.Fail("Enter the company name.");
         if (request.Apps == SuiteAppFlags.None) return OperationResult.Fail("Pick at least one app.");
         if (request.MaxUsersOverride is int n && (n < 1 || n > 100000)) return OperationResult.Fail("Licenses must be between 1 and 100,000.");
+        if (TenantRules.ValidateAdmin(request) is string adminProblem) return OperationResult.Fail(adminProblem);
+        if (request.AdminEmail is not null)
+        {
+            var res = (await _db.QueryAsync("dbo.Vaikunth_Tenant_UpdateAdmin", p => p
+                .With("@TenantId", request.TenantId).AddText("@Name", request.AdminName!.Trim(), 120)
+                .AddText("@Email", request.AdminEmail.Trim().ToLowerInvariant(), 200), r => r.I("Result"))).FirstOrDefault();
+            if (res == 0) return OperationResult.Fail($"{request.AdminEmail.Trim()} is already used by someone else.");
+        }
         await _db.ExecAsync("dbo.Vaikunth_Tenant_Update", p => p
             .With("@TenantId", request.TenantId).AddText("@Name", request.Name.Trim(), 120).With("@PlanId", request.PlanId)
             .With("@AppsEnabled", (byte)request.Apps).With("@MaxUsersOverride", request.MaxUsersOverride)

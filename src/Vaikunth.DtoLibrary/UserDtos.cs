@@ -43,7 +43,7 @@ public sealed class InviteRequest
     public string Email { get; set; } = "";
     public string Role { get; set; } = AppRoles.Member;
     public string? Department { get; set; }
-    /// <summary>Their job, e.g. "Accountant" (Role above is what they may do in Vaikunth Office).</summary>
+    /// <summary>Their job, e.g. "Accountant" (Role above is what they may do in Vaikunth Desk).</summary>
     public string? JobTitle { get; set; }
     public DateOnly? JoiningDate { get; set; }
 }

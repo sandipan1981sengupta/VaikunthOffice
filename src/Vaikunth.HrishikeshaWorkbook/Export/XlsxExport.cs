@@ -18,7 +18,7 @@ public static partial class XlsxExport
     {
         using var wb = new XLWorkbook();
         wb.Properties.Title = title;
-        wb.Properties.Author = "Vaikunth Office · Hrishikesha Workbook";
+        wb.Properties.Author = "Vaikunth Desk · Hrishikesha Workbook";
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var sheet in book.Sheets.Count == 0 ? [new SheetDto()] : book.Sheets)

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Vaijayanti Days (calendar): month, week, day and agenda views of the team's events, with invites. It runs inside Vaikunth.Office.Web at /days, in the workspace with the side rail.
+       Its wwwroot is served at /_content/Vaikunth.VaijayantiDays/... and bundled as days.css / days.js. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Vaikunth.VaijayantiDays</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vaikunth.DtoLibrary\Vaikunth.DtoLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.ServiceLibrary\Vaikunth.ServiceLibrary.csproj" />
+    <ProjectReference Include="..\Vaikunth.UI\Vaikunth.UI.csproj" />
+  </ItemGroup>
+
+</Project>

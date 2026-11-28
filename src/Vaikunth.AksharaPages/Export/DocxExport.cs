@@ -29,7 +29,7 @@ public static class DocxExport
                 new PageMargin { Top = 1440, Bottom = 1440, Left = (UInt32Value)1440U, Right = (UInt32Value)1440U, Header = (UInt32Value)720U, Footer = (UInt32Value)720U }));
 
             word.PackageProperties.Title = title;
-            word.PackageProperties.Creator = "Vaikunth Office · Akshara Pages";
+            word.PackageProperties.Creator = "Vaikunth Desk · Akshara Pages";
             main.Document.Save();
         }
         return ms.ToArray();

@@ -1,6 +1,6 @@
 using Vaikunth.UI.Infrastructure;
 
-// Vaikunth Office: one website. After sign-in the landing page shows Word, Excel and PowerPoint;
+// Vaikunth Desk: one website. After sign-in the landing page shows Word, Excel and PowerPoint;
 // each opens in its own tab at /pages, /workbook or /slides. Everything is set up in Vaikunth.UI (WebRegistration).
 var builder = WebApplication.CreateBuilder(args);
 builder.AddVaikunthOffice();

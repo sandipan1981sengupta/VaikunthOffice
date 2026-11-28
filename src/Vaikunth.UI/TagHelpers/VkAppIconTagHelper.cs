@@ -22,7 +22,7 @@ public sealed class VkAppIconTagHelper : TagHelper
         var isSuite = string.Equals(App, "suite", StringComparison.OrdinalIgnoreCase);
         var info = isSuite ? null : SuiteApps.For(App);
         output.Attributes.SetAttribute("src", isSuite ? "/_content/Vaikunth.UI/images/vaikunth-logo.svg" : info!.IconUrl);
-        output.Attributes.SetAttribute("alt", isSuite ? "Vaikunth Office" : info!.Name);
+        output.Attributes.SetAttribute("alt", isSuite ? "Vaikunth Desk" : info!.Name);
         output.Attributes.SetAttribute("width", Size);
         output.Attributes.SetAttribute("height", Size);
         output.Attributes.SetAttribute("class", Cls("vk-app-icon", CssClass));

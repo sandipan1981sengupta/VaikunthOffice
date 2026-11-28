@@ -1,19 +1,21 @@
-@* Left side of the sign-in page: logo, name, the five apps, one line, and the verse. *@
+@* Left side of the sign-in page: logo, name, the seven apps, one line, and the verse. *@
 <section class="vk-hero">
+    <div class="vk-maker vk-maker-hero"><small>A product of</small><b>@SuiteOptions.Maker.ToUpperInvariant()</b></div>
     <div class="vk-brand-row">
-        <span class="vk-brand-tile"><vk-app-icon app="suite" size="84" /></span>
+        <span class="vk-brand-tile"><i class="vk-brand-halo" aria-hidden="true"></i><vk-app-icon app="suite" size="84" /></span>
         <div>
-            <h1 class="vk-wordmark">VAIKUNTH <span>OFFICE</span></h1>
-            <p class="vk-by">Write · Present · Calculate · Read · Plan</p>
+            <h1 class="vk-wordmark">VAIKUNTH <span>DESK</span></h1>
+            <p class="vk-by">Write · Present · Calculate · Read · Plan · Meet · Mail</p>
         </div>
     </div>
 
-    <p class="vk-hero-line">Documents, slides, workbooks, PDFs and projects, <span class="vk-grad-text">in one calm place.</span></p>
+    <p class="vk-hero-line">Documents, slides, sheets, PDFs, projects, calendar and mail, <span class="vk-grad-text vk-grad-flow">in one calm place.</span></p>
 
     <ul class="vk-hero-apps">
+        @{ var n = 0; }
         @foreach (var a in SuiteApps.All)
         {
-            <li style="--tile:@a.Color;--tile-tint:@a.Tint">
+            <li style="--tile:@a.Color;--tile-tint:@a.Tint;--i:@(n++)">
                 <img src="@a.IconUrl" alt="" width="52" height="52" />
                 <span><b>@a.Name</b><small>@a.Kind · @a.Tagline</small></span>
             </li>

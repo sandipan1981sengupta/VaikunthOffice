@@ -43,7 +43,7 @@ public sealed class MockUserService : IUserService
             if (person.Password != request.Password) return Fail();
             if (!person.IsActive) return Fail("This account is switched off. Ask your admin.");
             var t = MockData.Tenants[person.TenantId!.Value];
-            if (!t.IsActive) return Fail("Your company's Vaikunth Office account is switched off. Ask your admin to contact us.");
+            if (!t.IsActive) return Fail("Your company's Vaikunth Desk account is switched off. Ask your admin to contact us.");
             if (t.BillingBlocked) return Fail(BillingRules.BlockedMessage);
             person.LastLoginUtc = DateTime.UtcNow;
             return Ok(new UserDto(person.UserId, t.TenantId, t.Name, person.DisplayName, person.Email, person.Role, Passwords.ToneFor(email), DateTime.UtcNow, t.Apps));
@@ -88,7 +88,7 @@ public sealed class MockUserService : IUserService
         if (string.IsNullOrWhiteSpace(r.Email) || !r.Email.Contains('@')) return Task.FromResult(OperationResult.Fail("Enter a valid email."));
         if (MockData.Tenants.TryGetValue(r.TenantId, out var t) &&
             t.ExtraUsers + MockData.People.Values.Count(p => p.TenantId == r.TenantId && p.IsActive) >= MockData.MaxUsers(t))
-            return Task.FromResult(OperationResult.Fail("All your company's licenses are in use. Ask Vaikunth Office for more licenses, or switch off someone who has left."));
+            return Task.FromResult(OperationResult.Fail("All your company's licenses are in use. Ask Vaikunth Desk for more licenses, or switch off someone who has left."));
         var by = MockData.People.Values.FirstOrDefault(p => p.UserId == r.InvitedBy)?.DisplayName;
         var person = new MockData.Person
         {

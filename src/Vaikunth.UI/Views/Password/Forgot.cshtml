@@ -20,7 +20,7 @@
         @if (Model.Sent)
         {
             <div class="vk-banner ok vk-banner-top"><i class="fa fa-envelope-o"></i>
-                <span>If <b class="vk-break">@Model.Email</b> has a Vaikunth Office account, a reset link is on its way. Check your inbox (and spam). The link works for 2 hours.</span></div>
+                <span>If <b class="vk-break">@Model.Email</b> has a Vaikunth Desk account, a reset link is on its way. Check your inbox (and spam). The link works for 2 hours.</span></div>
             <a class="vk-btn vk-btn-grad vk-signin" href="/account/login?email=@Uri.EscapeDataString(Model.Email)">Back to sign in <i class="fa fa-arrow-right"></i></a>
         }
         else

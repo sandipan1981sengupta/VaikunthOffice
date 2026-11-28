@@ -18,23 +18,23 @@ public sealed class AccountEmailService : IAccountEmailService
     private static string E(string s) => WebUtility.HtmlEncode(s);
 
     public Task<bool> SendClientWelcomeAsync(string toEmail, string personName, string companyName, string setPasswordUrl) =>
-        _email.SendAsync(toEmail, $"Welcome to Vaikunth Office, {companyName}", Layout(
+        _email.SendAsync(toEmail, $"Welcome to Vaikunth Desk, {companyName}", Layout(
             $"Welcome, {E(personName)}",
-            $"<p><b>{E(companyName)}</b> now has Vaikunth Office: Akshara Pages, Vishwaroopa Slides, Hrishikesha Workbook, Shashvata Reader and Dhruva Planner.</p>" +
+            $"<p><b>{E(companyName)}</b> now has Vaikunth Desk: Akshara Pages, Vishwaroopa Slides, Hrishikesha Workbook, Shashvata Reader and Dhruva Planner.</p>" +
             "<p>You are the admin for your company. Set your password, then add the people in your office from the <b>People</b> page. Each of them gets an email like this one.</p>",
             "Set my password", setPasswordUrl, "This link works once and is valid for 7 days."));
 
     public Task<bool> SendMemberInviteAsync(string toEmail, string personName, string companyName, string invitedBy, string setPasswordUrl) =>
-        _email.SendAsync(toEmail, $"{invitedBy} added you to Vaikunth Office", Layout(
+        _email.SendAsync(toEmail, $"{invitedBy} added you to Vaikunth Desk", Layout(
             $"Hello {E(personName)}",
-            $"<p><b>{E(invitedBy)}</b> added you to <b>{E(companyName)}</b> on Vaikunth Office.</p>" +
+            $"<p><b>{E(invitedBy)}</b> added you to <b>{E(companyName)}</b> on Vaikunth Desk.</p>" +
             "<p>Set your password to start writing documents, presenting slides, building workbooks, reading PDFs and planning projects.</p>",
             "Set my password", setPasswordUrl, "This link works once and is valid for 7 days."));
 
     public Task<bool> SendPasswordResetAsync(string toEmail, string personName, string setPasswordUrl) =>
-        _email.SendAsync(toEmail, "Reset your Vaikunth Office password", Layout(
+        _email.SendAsync(toEmail, "Reset your Vaikunth Desk password", Layout(
             $"Hello {E(personName)}",
-            "<p>Someone (hopefully you) asked to reset your Vaikunth Office password.</p><p>Choose a new password with the button below.</p>",
+            "<p>Someone (hopefully you) asked to reset your Vaikunth Desk password.</p><p>Choose a new password with the button below.</p>",
             "Choose a new password", setPasswordUrl, "This link works once and is valid for 2 hours. If you didn't ask for it, ignore this email: your password stays the same."));
 
     /// <summary>Simple table layout that looks right in Gmail and Outlook.</summary>
@@ -43,7 +43,7 @@ public sealed class AccountEmailService : IAccountEmailService
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:28px 12px"><tr><td align="center">
           <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #E3E5EE">
             <tr><td style="background:linear-gradient(110deg,#1E2060,#2B2F86 55%,#14A3A0);background-color:#1E2060;padding:22px 28px;color:#fff">
-              <span style="font-size:18px;letter-spacing:3px;font-weight:800">VAIKUNTH</span> <span style="font-size:18px;letter-spacing:3px;opacity:.75">OFFICE</span>
+              <span style="font-size:18px;letter-spacing:3px;font-weight:800">VAIKUNTH</span> <span style="font-size:18px;letter-spacing:3px;opacity:.75">DESK</span>
               <div style="font-size:12px;opacity:.85;margin-top:4px">Akshara Pages · Vishwaroopa Slides · Hrishikesha Workbook · Shashvata Reader · Dhruva Planner</div>
             </td></tr>
             <tr><td style="padding:28px">

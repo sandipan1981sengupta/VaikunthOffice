@@ -80,7 +80,7 @@
         var pptx = new PptxGenJS();
         pptx.layout = "LAYOUT_16x9";
         pptx.title = fileName.replace(/\.pptx$/i, "");
-        pptx.company = "Vaikunth Office";
+        pptx.company = "Vaikunth Desk";
         var th = THEMES[deck.theme] || THEMES.plain;
 
         deck.slides.forEach(function (s) {

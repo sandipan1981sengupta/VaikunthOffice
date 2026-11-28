@@ -1,0 +1,12 @@
+@* The content of a workspace page without the frame around it: what the side rail and the AJAX panel fetch (X-Partial: 1).
+   The script (js/ajax-panel.js) reads the page's details from #vkPanelMeta, adds the page's styles and scripts that are
+   not on the page yet, puts the rest into <main> and starts it. The header, rail and theme stay as they are. *@
+<div hidden id="vkPanelMeta"
+     data-title="@(ViewData["Title"] is string t ? $"{t} · Vaikunth Desk" : "Vaikunth Desk")"
+     data-section="@(ViewData["Section"] as string ?? "")"
+     data-headsub="@(ViewData["HeadSub"] as string ?? "All client workspaces")"
+     data-fixed="@(ViewData["FixedShell"] is true ? "1" : "0")"
+     data-ajax="@(ViewData["AjaxPanel"] is true ? "1" : "0")"></div>
+@await RenderSectionAsync("Styles", required: false)
+@RenderBody()
+@await RenderSectionAsync("Scripts", required: false)

@@ -1,0 +1,29 @@
+{
+  "ConnectionStrings": {
+    "Default": "Server=tcp:serveradhrit.database.windows.net,1433;Initial Catalog=Cloudwheel;User ID=AdhritAll;Password=krish@234$;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+  },
+  "Suite": {
+    "PublicBaseUrl": "https://smartoffice.cloudwheel.info",
+    "DataProtectionKeysPath": ""
+  },
+  "Storage": {
+    "RootPath": "App_Data/files",
+    "MaxFileMb": 200
+  },
+  "Smtp": {
+    "Host": "aspire.herosite.pro",
+    "Port": 465,
+    "EnableSsl": true,
+    "UserName": "no-reply@cloudwheel.info",
+    "Password": "@Aeiouvwx24192419",
+    "FromAddress": "no-reply@cloudwheel.info",
+    "FromName": "Vaikunth Office"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

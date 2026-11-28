@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 namespace Vaikunth.ServiceLibrary.Data;
 
 /// <summary>
-/// Thin ADO.NET helper: every database call in Vaikunth Office is a stored procedure run through here.
+/// Thin ADO.NET helper: every database call in Vaikunth Desk is a stored procedure run through here.
 /// Opening a connection retries automatically on Azure SQL's short "transient" errors.
 /// </summary>
 public sealed class SqlDb

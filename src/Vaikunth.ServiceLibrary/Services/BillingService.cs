@@ -21,6 +21,8 @@ public interface IBillingService
     /// <summary>Let a client in again until a day (unblocks it now). Null takes the hold off.</summary>
     Task SetHoldAsync(Guid tenantId, DateOnly? until);
     Task SetBlockedAsync(Guid tenantId, bool blocked);
+    /// <summary>One client's own payment rules (or back to the default rules) and its first billed month.</summary>
+    Task<OperationResult> SaveClientRulesAsync(ClientRulesRequest request);
     /// <summary>Clients whose people can't sign in right now: paused, or blocked for an unpaid bill.</summary>
     Task<List<Guid>> LockedTenantsAsync();
 }
@@ -30,13 +32,20 @@ public static class BillingRules
     public static readonly string[] Methods = ["Bank transfer", "UPI", "Cheque", "Cash", "Card"];
 
     public const string BlockedMessage =
-        "Your company's Vaikunth Office account is on hold because a payment is overdue. Ask your admin to contact us.";
+        "Your company's Vaikunth Desk account is on hold because a payment is overdue. Ask your admin to contact us.";
 
     public static string? Validate(BillingSettingsDto s)
     {
         if (s.DueDay is < 1 or > 28) return "Pick a due day between the 1st and the 28th.";
         if (s.GraceDays is < 0 or > 365) return "Days before the block must be between 0 and 365.";
         return null;
+    }
+
+    public static string? Validate(ClientRulesRequest r)
+    {
+        if (r.TenantId == Guid.Empty) return "Pick the client.";
+        if (r.UseDefault) return null;
+        return Validate(new BillingSettingsDto { DueDay = r.DueDay, GraceDays = r.GraceDays, AutoBlock = r.AutoBlock });
     }
 
     public static string? Validate(RecordPaymentRequest r)
@@ -56,8 +65,9 @@ public static class BillingCalculator
 {
     public static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
 
-    public static ClientBillDto For(TenantDto t, BillingSettingsDto s, IEnumerable<PaymentDto> payments, DateOnly today)
+    public static ClientBillDto For(TenantDto t, BillingSettingsDto defaults, IEnumerable<PaymentDto> payments, DateOnly today)
     {
+        var s = defaults.For(t);   // the client's own rules where it has them
         var thisMonth = Money.FirstOfMonth(today);
         var mine = payments.Where(p => p.TenantId == t.TenantId).ToList();
         var paidThisMonth = mine.Where(p => p.Period == thisMonth).Sum(p => p.Amount);
@@ -117,7 +127,7 @@ public sealed record BillingOverview(BillingSettingsDto Settings, List<TenantDto
     public int Blocked => Bills.Values.Count(b => b.State == BillState.Blocked);
 }
 
-/// <summary>Clients whose people may not use Vaikunth Office right now (paused or blocked). Signed-in people of these are signed out.</summary>
+/// <summary>Clients whose people may not use Vaikunth Desk right now (paused or blocked). Signed-in people of these are signed out.</summary>
 public sealed class TenantGate
 {
     private volatile HashSet<Guid> _locked = [];
@@ -246,6 +256,18 @@ public sealed class BillingService : IBillingService
 
     public Task SetHoldAsync(Guid tenantId, DateOnly? until) =>
         _db.ExecAsync("dbo.Vaikunth_Tenant_SetHold", p => p.With("@TenantId", tenantId).AddDate("@HoldUntil", until));
+
+    public async Task<OperationResult> SaveClientRulesAsync(ClientRulesRequest r)
+    {
+        if (BillingRules.Validate(r) is string problem) return OperationResult.Fail(problem);
+        var rows = (await _db.QueryAsync("dbo.Vaikunth_Tenant_SetBillingRules", p => p
+            .With("@TenantId", r.TenantId)
+            .With("@DueDay", r.UseDefault ? null : (byte?)r.DueDay)
+            .With("@GraceDays", r.UseDefault ? null : (short?)r.GraceDays)
+            .With("@AutoBlock", r.UseDefault ? null : (bool?)r.AutoBlock)
+            .AddDate("@BillingFrom", r.BillingFrom is DateOnly f ? Money.FirstOfMonth(f) : null), x => x.I("Result"))).FirstOrDefault();
+        return rows > 0 ? OperationResult.Ok(r.TenantId) : OperationResult.Fail("Client not found.");
+    }
 
     public Task SetBlockedAsync(Guid tenantId, bool blocked) =>
         _db.ExecAsync("dbo.Vaikunth_Tenant_SetBlocked", p => p.With("@TenantId", tenantId).With("@Blocked", blocked));

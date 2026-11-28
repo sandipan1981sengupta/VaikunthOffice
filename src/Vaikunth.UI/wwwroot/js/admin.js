@@ -1,4 +1,4 @@
-/* Vaikunth Office · super admin Clients page: the clients grid and its details pane, the toolbar, money (payments,
+/* Vaikunth Desk · super admin Clients page: the clients grid and its details pane, the toolbar, money (payments,
    let in again) and the client windows. The lists and fields are the ShankhNaad (Template 1) controls:
    modern-table, modern-input, modern-dropdown-with-label, modern-datepicker-with-label, modern-month-year-picker,
    modern-radio-group and modern-checkbox. Loaded after jQuery, the controls, vaikunth.js and workspace.js. */
@@ -75,7 +75,16 @@ window.VKAdmin = (function ($) {
         set("selPlan", c.Plan + (c.free ? " (free)" : " · " + rupees(c.price) + " a license"));
         set("selApps", cfg.appNames.filter(function (a) { return (c.apps & a.flag) !== 0; }).map(function (a) { return a.name; }).join(", ") || "None");
         set("selFiles", files(c) + " (" + c.docs + " documents, " + c.decks + " decks, " + c.sheets + " workbooks, " + c.pdfs + " PDFs, " + c.projects + " projects)");
-        set("selAdmin", c.admin ? c.admin + " · " + c.adminEmail + (c.adminPending ? " (invited)" : "") : "None");
+        var sa = el("selAdmin");
+        if (sa) {
+            sa.textContent = "";
+            if (!c.admin) sa.textContent = "None";
+            else {
+                var nm = document.createElement("b"); nm.textContent = c.admin + (c.adminPending ? " (invited)" : "");
+                var em = document.createElement("small"); em.textContent = c.adminEmail || ""; em.title = c.adminEmail || "";
+                sa.appendChild(nm); sa.appendChild(em);
+            }
+        }
         set("selSince", c.since);
 
         el("planTenant").value = c.Id;
@@ -91,7 +100,9 @@ window.VKAdmin = (function ($) {
     }
 
     // ---------- the toolbar ----------
+    /** Toolbar actions post without reloading the page (js/ajax-panel.js); the answer comes as a toast. */
     function post(action, fields) {
+        if (window.VKPanel) { window.VKPanel.post(action, fields); return; }
         var f = el("actForm");
         f.action = action;
         el("actTenant").value = fields.tenantId || "";
@@ -100,6 +111,7 @@ window.VKAdmin = (function ($) {
         f.submit();
     }
     VK.on("refresh", function () {
+        if (window.VKPanel) { window.VKPanel.reload().then(function () { VK.toast("Up to date.", "success", { duration: 1800 }); }); return; }
         var u = new URL(location.href);
         u.searchParams.delete("q");
         location.href = u.toString();
@@ -124,22 +136,44 @@ window.VKAdmin = (function ($) {
         set("editBillNote", c.free ? "Free plan: never billed. The month counts if the client moves to a paid plan."
             : c.billMath + ". Months before this one are never billed.");
         setModernCheckboxValue("#EditActive", c.active);
+        var ag = el("editAdminGroup"), hasAdmin = !!c.adminEmail;
+        if (ag) {
+            ag.hidden = !hasAdmin;
+            ag.querySelectorAll("input").forEach(function (i) { i.disabled = !hasAdmin; });
+            if (hasAdmin) {
+                setModernInputValue("#EditAdminName", c.admin || "");
+                setModernInputValue("#EditAdminEmail", c.adminEmail || "");
+                set("editAdminNote", c.adminPending
+                    ? "Not signed in yet. If you correct the email, a new welcome email goes to the new address and the old link stops working."
+                    : "They sign in with this email. If you change it, tell them: their password stays the same.");
+            }
+        }
         open("editClient");
     });
+    function esc(t) { var d = document.createElement("div"); d.textContent = t == null ? "" : String(t); return d.innerHTML; }
+    // Delete: ShankhNaad's message box. A client also needs its short name typed, because it can't be undone.
     VK.on("deleteClient", function () {
         var c = current();
-        if (!c) { VK.toast("Select a client first."); return; }
-        if (c.active) { VK.toast("Pause " + c.Name + " first. Only a paused client can be deleted."); return; }
-        el("delTenant").value = c.Id;
-        set("delName", c.Name);
-        set("delUsers", "All " + c.users);
-        set("delFiles", files(c));
-        set("delStorage", c.storage);
-        set("delSlug", c.Slug);
-        setModernInputValue("#delConfirm", "");
-        el("delSubmit").disabled = true;
-        open("deleteClient");
-        setTimeout(function () { el("delConfirm").focus(); }, 30);
+        if (!c) { VK.toast("Select a client first.", "info"); return; }
+        if (c.active) { VK.toast("Pause " + c.Name + " first. Only a paused client can be deleted.", "warning"); return; }
+        confirmMessageBox({
+            title: "Delete " + c.Name + "?", type: "error", icon: "warning", danger: true,
+            confirmText: "Delete forever", cancelText: "Cancel", asHtml: true,
+            text: "<p class='vk-mb-lead'>This can't be undone. These go for good:</p>" +
+                "<ul class='vk-mb-list'><li><b>" + esc(c.users) + "</b> " + (c.users === 1 ? "person" : "people") + " and their sign-ins</li>" +
+                "<li><b>" + esc(files(c)) + "</b> files (" + esc(c.storage) + ")</li><li>Its payments and its folder on the server</li></ul>" +
+                "<label class='vk-mb-label' for='mbDelSlug'>Type <b>" + esc(c.Slug) + "</b> to confirm</label>" +
+                "<input id='mbDelSlug' class='vk-mb-input' autocomplete='off' spellcheck='false' />",
+            onConfirm: function () {
+                var typed = (document.getElementById("mbDelSlug") || {}).value || "";
+                if (typed.trim().toLowerCase() !== String(c.Slug).toLowerCase()) {
+                    VK.toast("The short name didn't match, so nothing was deleted.", "warning");
+                    return;
+                }
+                post("/admin/delete", { tenantId: c.Id, confirmSlug: typed.trim() });
+            }
+        });
+        setTimeout(function () { var i = document.getElementById("mbDelSlug"); if (i) i.focus(); }, 80);
     });
 
     // Export: the list of the open tab, as the person sees it (search, filters, visible columns)
@@ -214,10 +248,14 @@ window.VKAdmin = (function ($) {
     });
     VK.on("deletePayment", function () {
         var a = api("payGrid"); var p = a && a.getSelected();
-        if (!p) { VK.toast("Select a payment in Money received first."); return; }
-        el("delPayId").value = p.Id;
-        set("delPayText", "Delete " + p.amountText + " from " + p.Client + " for " + p.Month + " (" + p.Method + (p.Reference ? ", " + p.Reference : "") + ")?");
-        open("deletePayment");
+        if (!p) { VK.toast("Select a payment in Money received first.", "info"); return; }
+        confirmMessageBox({
+            title: "Delete this payment?", type: "error", icon: "warning", danger: true, confirmText: "Delete payment", asHtml: true,
+            text: "<p class='vk-mb-lead'><b>" + esc(p.amountText) + "</b> from <b>" + esc(p.Client) + "</b> for " + esc(p.Month) + "</p>" +
+                "<p class='vk-mb-sub'>" + esc(p.Method) + (p.Reference ? " · " + esc(p.Reference) : "") + " · paid on " + esc(p.PaidOn) + "</p>" +
+                "<p class='vk-mb-sub'>Only if it was noted by mistake. That month counts as unpaid again.</p>",
+            onConfirm: function () { post("/admin/payments/delete", { paymentId: p.Id }); }
+        });
     });
 
     // ---------- New client window ----------
@@ -255,12 +293,6 @@ window.VKAdmin = (function ($) {
         sync();
     }
 
-    function wireDelete() {
-        $("#delConfirm").on("input", function () {
-            var c = current();
-            el("delSubmit").disabled = !c || this.value.trim().toLowerCase() !== String(c.Slug).toLowerCase();
-        });
-    }
 
     function wirePayments() {
         $("#payClient_value").on("change", function () { payFor(clientById(this.value)); });
@@ -272,14 +304,68 @@ window.VKAdmin = (function ($) {
             if (!(parseFloat(String($("#payAmount").val()).replace(/[^0-9.]/g, "")) > 0)) { e.preventDefault(); VK.toast("Enter the amount received."); return; }
             if (!$("#payPaidOn").val()) { e.preventDefault(); VK.toast("Pick the day the money came in."); }
         });
-        $("#rulesForm").on("submit", function (e) {
-            var g = parseInt($("#ruleGrace").val(), 10);
-            if (!(g >= 0 && g <= 365)) { e.preventDefault(); VK.toast("Days before the block must be between 0 and 365."); }
-        });
     }
 
+    // ---------- payment rules: the default ones, or one client's own ----------
+    function wireRules() {
+        var form = el("rulesForm");
+        if (!form) return;
+        var defaults = { due: form.getAttribute("data-default-due"), grace: form.getAttribute("data-default-grace"), block: form.getAttribute("data-default-block") === "true" };
+        function show(c, own) {
+            // c = the client picked (null = the default rules); own = it uses rules of its own
+            var forClient = !!c;
+            el("ruleOwnWrap").hidden = !forClient;
+            el("ruleFromWrap").hidden = !forClient;
+            el("ruleTenant").value = forClient ? c.Id : "";
+            form.action = forClient ? "/admin/rules/client" : "/admin/billing";
+            var editable = !forClient || own;
+            el("ruleUseDefault").value = forClient && !own ? "true" : "false";
+            var src = forClient && own ? { due: String(c.ruleDueDay), grace: String(c.ruleGrace), block: !!c.ruleAutoBlock } : defaults;
+            setModernDropdownWithLabelValue("#ruleDueDay", src.due);
+            setModernInputValue("#ruleGrace", src.grace);
+            setModernCheckboxValue("#ruleAutoBlock", src.block);
+            ["ruleDueDay", "ruleGrace", "ruleAutoBlock"].forEach(function (id) {
+                var box = el(id); var wrap = box && (box.closest(".modern-dropdown-with-label, .mi-field, .mi-input-wrap, .mc-control") || box.parentElement);
+                if (wrap) wrap.classList.toggle("vk-rule-off", !editable);
+            });
+            if (forClient && c.billingFrom) setModernMonthYearPickerValue("#ruleFrom", c.billingFrom);
+            set("ruleNote", !forClient ? "These rules are for every client that has no rules of its own."
+                : own ? c.Name + " has its own rules. Turn them off to follow the default rules again."
+                : c.Name + " follows the default rules (" + ordinal(defaults.due) + ", " + (defaults.block ? defaults.grace + " days" : "no block") + "). Turn on Own rules to change them for it only.");
+        }
+        function ordinal(n) { n = parseInt(n, 10); var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+        function picked() { var id = $("#ruleClient_value").val(); return id ? clientById(id) : null; }
+        $("#ruleClient_value").on("change", function () {
+            var c = picked();
+            if (c) setModernCheckboxValue("#ruleOwnToggle", !!c.ownRules);
+            show(c, c ? !!c.ownRules : false);
+        });
+        $("#ruleOwnToggle").on("change", function () { var c = picked(); if (c) show(c, this.checked); });
+        // picking a row in Who has paid picks that client here too
+        $("#billGrid").on("table:select", function (e, row) {
+            if (!row) return;
+            setModernDropdownWithLabelValue("#ruleClient", row.Id);
+            var c = clientById(row.Id);
+            if (c) { setModernCheckboxValue("#ruleOwnToggle", !!c.ownRules); show(c, !!c.ownRules); }
+        });
+        $(form).on("submit", function (e) {
+            var g = parseInt($("#ruleGrace").val(), 10);
+            if (el("ruleUseDefault").value !== "true" && !(g >= 0 && g <= 365)) { e.preventDefault(); VK.toast("Days before the block must be between 0 and 365.", "warning"); }
+        });
+        show(null, false);
+    }
+
+    var listening = false;
     function init(options) {
+        if (!options) {
+            var json = el("adminCfg");
+            try { options = json ? JSON.parse(json.textContent) : {}; } catch (e) { options = {}; }
+        }
         for (var k in options) cfg[k] = options[k];
+        if (!listening) {   // after a save or Refresh the content is new: start this page again on it
+            listening = true;
+            document.addEventListener("vk:panel", function () { if (document.getElementById("adminCfg")) init(); });
+        }
         $("#clientGrid").on("table:select", function (e, row) { fill(row); });
         var g = api("clientGrid");
         if (g) g.setRowClassCallback(function (r) {
@@ -291,8 +377,8 @@ window.VKAdmin = (function ($) {
             if (navigator.clipboard) navigator.clipboard.writeText(c.Slug).then(function () { VK.toast("Copied " + c.Slug + "."); }, function () { });
         });
         wireNew();
-        wireDelete();
         wirePayments();
+        wireRules();
         if (g && cfg.selected && g.selectById(cfg.selected)) { /* details pane filled by table:select */ }
         else fill(null);
     }

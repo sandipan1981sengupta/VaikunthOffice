@@ -17,7 +17,7 @@ public static class PlannerXlsx
 
         using var wb = new XLWorkbook();
         wb.Properties.Title = title;
-        wb.Properties.Author = "Vaikunth Office · Dhruva Planner";
+        wb.Properties.Author = "Vaikunth Desk · Dhruva Planner";
 
         // ---- Tasks ----
         var ws = wb.Worksheets.Add("Tasks");

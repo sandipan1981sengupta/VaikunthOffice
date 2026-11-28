@@ -75,7 +75,7 @@ public sealed class UserService : IUserService
             return new LoginResult(false, Error: "This account is switched off. Ask your admin.");
         if (!rows[0].TenantActive)
             return new LoginResult(false, Error: rows[0].Unpaid ? BillingRules.BlockedMessage
-                : "Your company's Vaikunth Office account is switched off. Ask your admin to contact us.");
+                : "Your company's Vaikunth Desk account is switched off. Ask your admin to contact us.");
         await _db.ExecAsync("dbo.Vaikunth_User_TouchLogin", p => p.With("@UserId", rows[0].User.UserId));
         return new LoginResult(true, rows[0].User);
     }
@@ -123,7 +123,7 @@ public sealed class UserService : IUserService
         return rows.FirstOrDefault() switch
         {
             1 => OperationResult.Ok(id),
-            -1 => OperationResult.Fail("All your company's licenses are in use. Ask Vaikunth Office for more licenses, or switch off someone who has left."),
+            -1 => OperationResult.Fail("All your company's licenses are in use. Ask Vaikunth Desk for more licenses, or switch off someone who has left."),
             _ => OperationResult.Fail("That email is already used.")
         };
     }

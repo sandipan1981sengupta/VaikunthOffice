@@ -1,16 +1,15 @@
 @* The super admin's workspace frame, laid out like ShankhNaad: a glass side rail on the left, a glass header card
-   (Vaikunth Office name, theme, clock, the person's menu), and the page under it. Pages set Layout = "_AdminLayout". *@
+   (Vaikunth Desk name, theme, clock, the person's menu), and the page under it. Pages set Layout = "_AdminLayout". *@
 @{
     var section = ViewData["Section"] as string ?? "admin";
-    var roleText = User.IsSuperAdmin() ? "Vaikunth Office super admin" : User.IsInRole(AppRoles.TenantAdmin) ? "Client admin" : "Member";
+    var roleText = User.IsSuperAdmin() ? "Vaikunth Desk super admin" : User.IsInRole(AppRoles.TenantAdmin) ? "Client admin" : "Member";
 }
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <partial name="_Head" />
-    <link rel="stylesheet" href="~/_content/Vaikunth.UI/css/workspace.css" asp-append-version="true" />
-    <partial name="_ModernControlsStyles" />
-    <title>@(ViewData["Title"] is string t ? $"{t} · Vaikunth Office" : "Vaikunth Office")</title>
+    <vk-bundle name="workspace.css" />
+    <title>@(ViewData["Title"] is string t ? $"{t} · Vaikunth Desk" : "Vaikunth Desk")</title>
     <meta name="theme-color" content="#E9EBF8" />
     @* Light or Dark, chosen in the person's menu; applied before the page paints so there is no flash *@
     <script>
@@ -25,7 +24,7 @@
     </script>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="vk-ws-body" data-app="suite">
+<body class="vk-ws-body@(ViewData["FixedShell"] is true ? " vk-fixed-shell" : "")" data-app="suite">
     <div class="vk-backdrop vk-ws-backdrop" aria-hidden="true">
         <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
         <span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>
@@ -35,13 +34,31 @@
     <div class="vk-ws">
         @* ---- side rail ---- *@
         <nav class="vk-rail vk-glass-card" aria-label="Sections">
-            <a class="vk-rail-logo" href="@(User.IsSuperAdmin() ? "/admin" : "/")" title="Vaikunth Office"><vk-app-icon app="suite" size="50" /></a>
+            <a class="vk-rail-logo" href="@(User.IsSuperAdmin() ? "/admin" : "/")" title="Vaikunth Desk"><vk-app-icon app="suite" size="50" /></a>
             <span class="vk-rail-div" aria-hidden="true"></span>
             @if (User.IsSuperAdmin())
             {
-                <a class="vk-rail-item @(section == "admin" ? "on" : "")" href="/admin" aria-current="@(section == "admin" ? "page" : null)">
+                <a class="vk-rail-item @(section == "admin" ? "on" : "")" data-section="admin" href="/admin" aria-current="@(section == "admin" ? "page" : null)">
                     <i class="fa fa-shield" aria-hidden="true"></i><span>Clients</span>
                 </a>
+            }
+            else
+            {
+                <a class="vk-rail-item @(section == "home" ? "on" : "")" data-section="home" href="/" title="Your apps" aria-current="@(section == "home" ? "page" : null)"><i class="fa fa-th-large" aria-hidden="true"></i><span>Apps</span></a>
+                @if (User.Apps().Has(SuiteApp.Days))
+                {
+                    <a class="vk-rail-item @(section == "days" ? "on" : "")" data-section="days" href="/days" title="Vaijayanti Days" aria-current="@(section == "days" ? "page" : null)"><i class="fa fa-calendar" aria-hidden="true"></i><span>Calendar</span></a>
+                }
+                @if (User.Apps().Has(SuiteApp.Inbox))
+                {
+                    <a class="vk-rail-item @(section == "inbox" ? "on" : "")" data-section="inbox" href="/inbox" title="Sudarshana Inbox" aria-current="@(section == "inbox" ? "page" : null)"><i class="fa fa-envelope-o" aria-hidden="true"></i><span>Inbox</span><b class="vk-rail-count" id="railUnread" hidden></b></a>
+                }
+                @if (User.IsInRole(AppRoles.TenantAdmin))
+                {
+                    <a class="vk-rail-item @(section == "team" ? "on" : "")" data-section="team" href="/team" aria-current="@(section == "team" ? "page" : null)">
+                        <i class="fa fa-users" aria-hidden="true"></i><span>People</span>
+                    </a>
+                }
             }
             <span class="vk-rail-fill"></span>
             <button type="button" class="vk-rail-btn" title="Notifications" aria-label="Notifications"><i class="fa fa-bell-o" aria-hidden="true"></i><span class="vk-dot"></span></button>
@@ -53,10 +70,11 @@
                 <a class="vk-ws-brand" href="@(User.IsSuperAdmin() ? "/admin" : "/")">
                     <span class="vk-ws-brand-ic"><vk-app-icon app="suite" size="34" /></span>
                     <span class="vk-ws-brand-text">
-                        <b class="vk-grad-text">VAIKUNTH OFFICE</b>
-                        <small>@(ViewData["HeadSub"] as string ?? "All client workspaces")</small>
+                        <b class="vk-grad-text">VAIKUNTH DESK</b>
+                        <small id="vkHeadSub">@(ViewData["HeadSub"] as string ?? "All client workspaces")</small>
                     </span>
                 </a>
+                <span class="vk-maker" title="@SuiteOptions.Maker"><small>A product of</small><b>@SuiteOptions.Maker.ToUpperInvariant()</b></span>
                 <span class="vk-fill"></span>
                 <button type="button" class="vk-ws-round" data-cmd="themeToggle" title="Light or dark" aria-label="Switch between light and dark">
                     <i class="fa fa-moon-o vk-ic-moon" aria-hidden="true"></i><i class="fa fa-sun-o vk-ic-sun" aria-hidden="true"></i>
@@ -69,8 +87,11 @@
                         <span class="vk-ws-chev"><i class="fa fa-angle-down" aria-hidden="true"></i></span>
                     </button>
                     <div class="vk-menu-pop vk-ws-menu" hidden role="menu">
-                        <div class="vk-menu-who"><b>@User.DisplayName()</b><small>@User.Identity?.Name</small><small>@roleText</small></div>
-                        <button type="button" data-open-dialog="aboutDialog" role="menuitem"><i class="fa fa-question-circle-o"></i> About Vaikunth Office</button>
+                        <div class="vk-menu-who">
+                            <vk-avatar name="@User.DisplayName()" tone="@User.AvatarTone()" photo-url="@User.PhotoUrl()" size="48" />
+                            <span class="vk-who-text"><b>@User.DisplayName()</b><small title="@User.Identity?.Name">@User.Identity?.Name</small><em class="vk-who-role">@roleText</em></span>
+                        </div>
+                        <button type="button" data-open-dialog="aboutDialog" role="menuitem"><i class="fa fa-question-circle-o"></i> About Vaikunth Desk</button>
                         <button type="button" data-open-dialog="accountDialog" role="menuitem"><i class="fa fa-user-circle-o"></i> My account</button>
                         <button type="button" data-open-dialog="photoDialog" role="menuitem"><i class="fa fa-camera"></i> Profile photo</button>
                         <button type="button" data-cmd="maximize" role="menuitem"><i class="fa fa-expand" data-max-ic></i> <span data-max-text>Maximize</span></button>
@@ -86,7 +107,7 @@
                 </div>
             </header>
 
-            <main class="vk-ws-main">
+            <main class="vk-ws-main" data-ajax-panel="@(ViewData["AjaxPanel"] is true ? "on" : null)">
                 @RenderBody()
             </main>
         </div>
@@ -95,9 +116,8 @@
     <partial name="_AboutDialog" />
     <partial name="_AccountDialogs" />
 
-    <partial name="_ModernControlsScripts" />
-    <script src="~/_content/Vaikunth.UI/js/vaikunth.js" asp-append-version="true"></script>
-    <script src="~/_content/Vaikunth.UI/js/workspace.js" asp-append-version="true"></script>
+    @* jQuery, flatpickr, Chart.js, the ShankhNaad controls, toasts, message boxes and the suite scripts: one request *@
+    <vk-bundle name="workspace.js" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

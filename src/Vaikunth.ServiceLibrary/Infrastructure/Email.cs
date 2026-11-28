@@ -17,7 +17,7 @@ public sealed class SmtpOptions
     public string UserName { get; set; } = "";
     public string Password { get; set; } = "";
     public string FromAddress { get; set; } = "";
-    public string FromName { get; set; } = "Vaikunth Office";
+    public string FromName { get; set; } = "Vaikunth Desk";
     /// <summary>Where unsent emails are written while Host is empty (shared by the three apps). Empty = temp folder.</summary>
     public string OutboxPath { get; set; } = "";
 
@@ -30,6 +30,8 @@ public interface IAppEmailSender
     bool IsConfigured { get; }
     /// <summary>True when the mail server accepted the message (or it was saved to the outbox). Never throws: failures are logged.</summary>
     Task<bool> SendAsync(string to, string subject, string html);
+    /// <summary>Why the last email to this address failed, in plain words (null when it went out).</summary>
+    string? LastErrorFor(string to);
 }
 
 /// <summary>
@@ -49,6 +51,22 @@ public sealed class SmtpEmailSender : IAppEmailSender
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_o.Host);
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _errors = new(StringComparer.OrdinalIgnoreCase);
+    public string? LastErrorFor(string to) => _errors.TryGetValue(to.Trim(), out var e) ? e : null;
+
+    /// <summary>What went wrong, said so the super admin can fix the Smtp settings.</summary>
+    private string Explain(Exception ex) => ex switch
+    {
+        MailKit.Security.AuthenticationException => $"the mail server refused the user name or password ({_o.UserName}). For Gmail or Office 365 use an app password.",
+        MailKit.Security.SslHandshakeException => $"the secure connection failed. Port 465 needs SSL from the start, port 587 needs STARTTLS (EnableSsl true for both); check Port {_o.Port}.",
+        System.Net.Sockets.SocketException or OperationCanceledException or TimeoutException => $"the mail server {_o.Host}:{_o.Port} can't be reached from this server (wrong host or port, or a firewall).",
+        SmtpCommandException c when c.ErrorCode == SmtpErrorCode.SenderNotAccepted => $"the mail server won't send from {(string.IsNullOrWhiteSpace(_o.FromAddress) ? _o.UserName : _o.FromAddress)}. FromAddress must be an address that account may send from. ({c.Message})",
+        SmtpCommandException c when c.ErrorCode == SmtpErrorCode.RecipientNotAccepted => $"the mail server refused the address. ({c.Message})",
+        SmtpCommandException c => $"the mail server said: {c.Message} (code {(int)c.StatusCode}).",
+        ParseException => "the email address isn't valid.",
+        _ => ex.Message
+    };
+
     public async Task<bool> SendAsync(string to, string subject, string html)
     {
         if (!IsConfigured) return await SaveToOutboxAsync(to, subject, html);
@@ -67,11 +85,13 @@ public sealed class SmtpEmailSender : IAppEmailSender
             await client.SendAsync(new MailKit.SendRequest(message));   // MailKit 5: messages are sent as a SendRequest
             await client.DisconnectAsync(true);
             _log.LogInformation("Email \"{Subject}\" sent to {To}.", subject, to);
+            _errors.TryRemove(to.Trim(), out _);
             return true;
         }
         catch (Exception ex)
         {
             _log.LogError(ex, "Email \"{Subject}\" to {To} could not be sent. Check the Smtp settings.", subject, to);
+            _errors[to.Trim()] = Explain(ex);
             return false;
         }
     }
